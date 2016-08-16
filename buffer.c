@@ -70,7 +70,7 @@ struct evbuffer *
 evbuffer_new(void)
 {
 	struct evbuffer *buffer;
-	
+
 	buffer = calloc(1, sizeof(struct evbuffer));
 
 	return (buffer);
@@ -84,7 +84,7 @@ evbuffer_free(struct evbuffer *buffer)
 	free(buffer);
 }
 
-/* 
+/*
  * This is a destructive add.  The data from one buffer moves into
  * the other buffer.
  */
@@ -103,6 +103,7 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	int res;
 
 	/* Short cut for better performance */
+    // outbuf内存为0，直接交换即可
 	if (outbuf->off == 0) {
 		struct evbuffer tmp;
 		size_t oldoff = inbuf->off;
@@ -112,7 +113,7 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		SWAP(outbuf, inbuf);
 		SWAP(inbuf, &tmp);
 
-		/* 
+		/*
 		 * Optimization comes with a price; we need to notify the
 		 * buffer if necessary of the changes. oldoff is the amount
 		 * of data that we transfered from inbuf to outbuf
@@ -121,7 +122,7 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 			(*inbuf->cb)(inbuf, oldoff, inbuf->off, inbuf->cbarg);
 		if (oldoff && outbuf->cb != NULL)
 			(*outbuf->cb)(outbuf, 0, oldoff, outbuf->cbarg);
-		
+
 		return (0);
 	}
 
@@ -200,7 +201,7 @@ evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen)
 
 	memcpy(data, buf->buffer, nread);
 	evbuffer_drain(buf, nread);
-	
+
 	return (nread);
 }
 
@@ -250,7 +251,6 @@ evbuffer_readline(struct evbuffer *buffer)
 	return (line);
 }
 
-
 char *
 evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 		enum evbuffer_eol_style eol_style)
@@ -267,6 +267,10 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 	/* depending on eol_style, set start_of_eol to the first character
 	 * in the newline, and end_of_eol to one after the last character. */
 	switch (eol_style) {
+        // \r 或者 \n 被作为换行处理，都会被移除比如
+        // aaa\r\r\n\nbbbb   -> aaa  NULL
+        // aaaa\r\n\nbbb\r\n -> aaa bbb
+        // \r\r\aaa\nbbb     -> "" aaa NULL
 	case EVBUFFER_EOL_ANY:
 		for (i = 0; i < len; i++) {
 			if (data[i] == '\r' || data[i] == '\n')
@@ -282,6 +286,9 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 		}
 		end_of_eol = data+i;
 		break;
+    // 处理 \r\n 或者 \n，比如
+    // aaa\r\nbbb\r\n -> aaa bbb
+    // \naaa\nbbb -> "" aaa NULL
 	case EVBUFFER_EOL_CRLF:
 		end_of_eol = memchr(data, '\n', len);
 		if (!end_of_eol)
@@ -421,6 +428,7 @@ evbuffer_add(struct evbuffer *buf, const void *data, size_t datlen)
 	return (0);
 }
 
+// 放弃buf前面len字节大小的内存
 void
 evbuffer_drain(struct evbuffer *buf, size_t len)
 {
@@ -432,10 +440,10 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 		buf->misalign = 0;
 		goto done;
 	}
-
+    // 前移
 	buf->buffer += len;
 	buf->misalign += len;
-
+    // 可用内存相应减少
 	buf->off -= len;
 
  done:
@@ -479,7 +487,7 @@ evbuffer_read(struct evbuffer *buf, int fd, int howmuch)
 		if (n < EVBUFFER_MAX_READ)
 			n = EVBUFFER_MAX_READ;
 	}
-#endif	
+#endif
 	if (howmuch < 0 || howmuch > n)
 		howmuch = n;
 

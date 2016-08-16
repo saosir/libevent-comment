@@ -757,14 +757,20 @@ int	event_priority_set(struct event *, int);
 /* These functions deal with buffering input and output */
 
 struct evbuffer {
+    // 指向可用内存的起始 buffer >= orig_buffer
 	u_char *buffer;
+    // malloc分配的内存
 	u_char *orig_buffer;
 
 	size_t misalign;
+    // malloc 分配的内存大小，即orig_buffer~orig_buffer+totallen部分
 	size_t totallen;
+    // buffer内存的大小，buffer~buffer+off即为可用内存，存储可用的数据
 	size_t off;
 
-	void (*cb)(struct evbuffer *, size_t, size_t, void *);
+    // 当buffer指针改变会被回到
+	void (*cb)(struct evbuffer *, size_t/*old原来内存大小*/, size_t/*new改变后新的内存大小*/, void *);
+    // 给cb的自定义函数
 	void *cbarg;
 };
 
