@@ -299,6 +299,7 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 			start_of_eol = end_of_eol;
 		end_of_eol++; /*point to one after the LF. */
 		break;
+        // \r\n作为换行
 	case EVBUFFER_EOL_CRLF_STRICT: {
 		u_char *cp = data;
 		while ((cp = memchr(cp, '\r', len-(cp-data)))) {
@@ -315,6 +316,7 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 		end_of_eol = cp+2;
 		break;
 	}
+    // \n 作为换行
 	case EVBUFFER_EOL_LF:
 		start_of_eol = memchr(data, '\n', len);
 		if (!start_of_eol)
@@ -344,7 +346,8 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 }
 
 /* Adds data to an event buffer */
-
+// 调整内存，将buffer前移的数据放到前面，这样可以充分利用已经被移除
+// 的内存，但是需要将后面的内存前向拷贝
 static void
 evbuffer_align(struct evbuffer *buf)
 {
@@ -358,7 +361,7 @@ evbuffer_align(struct evbuffer *buf)
 #endif
 
 /* Expands the available space in the event buffer to at least datlen */
-
+// 扩充datlen大小的内存
 int
 evbuffer_expand(struct evbuffer *buf, size_t datlen)
 {
@@ -368,6 +371,7 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 	assert(buf->totallen >= used);
 
 	/* If we can fit all the data, then we don't have to do anything */
+    // 如果有datlen大小的内存可用，那么就不扩充
 	if (buf->totallen - used >= datlen)
 		return (0);
 	/* If we would need to overflow to fit this much data, we can't
@@ -379,12 +383,14 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 	 * If the misalignment fulfills our data needs, we just force an
 	 * alignment to happen.  Afterwards, we have enough space.
 	 */
+	 // 剩余内存足够datlen的话，只需要将后面的内存往上移就能满足
+	 // totallen-off包括了废弃的前面部分内存后没有使用的内存
 	if (buf->totallen - buf->off >= datlen) {
 		evbuffer_align(buf);
 	} else {
 		void *newbuf;
 		size_t length = buf->totallen;
-		size_t need = buf->off + datlen;
+		size_t need = buf->off + datlen; // 需要申请的内存大小
 
 		if (length < 256)
 			length = 256;
