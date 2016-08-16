@@ -126,7 +126,7 @@
   callbacks have been registered for a given URI.
 
   @section evrpc A framework for RPC servers and clients
- 
+
   libevents provides a framework for creating RPC servers and clients.  It
   takes care of marshaling and unmarshaling all data structures.
 
@@ -228,33 +228,33 @@ struct event_base;
 //该链表实现可以参看queue.h，实现得非常精巧,对于理解后续代码很有帮助
 struct event {
     //所有已注册到event_loop的节点
-	TAILQ_ENTRY (event) ev_next; 
+	TAILQ_ENTRY (event) ev_next;
     // 活动 队列节点
 	TAILQ_ENTRY (event) ev_active_next; //active list
 	// 信号队列节点
 	TAILQ_ENTRY (event) ev_signal_next; //singnal list
 	// 最小堆,标识自己在堆中的位置
 	unsigned int min_heap_idx;	/* for managing timeouts*/
-    
+
     //指向管理自己的event_base，即归属于哪个event_loop
-	struct event_base *ev_base; 
-    
+	struct event_base *ev_base;
+
     //关联的文件描述符,timeout event被忽略
-	int ev_fd;	
+	int ev_fd;
     //监听的类型
-	short ev_events; 
+	short ev_events;
     //插入active之后要被调用的次数
-	short ev_ncalls; 
+	short ev_ncalls;
     //通过该变量可以在调用过程中删除，因为
     // 有些event会在回调函数中删除自己，使用
     // 该变量就是为了防止这种情况，让event可以
     // 正确的将自己从event_loop中删除
 	short *ev_pncalls;	/* Allows deletes in callback */
-	
+
 	//超时的时间与min_heap_idx配合使用，用于二叉堆排序
 	struct timeval ev_timeout;
-	/* 优先级，事件发生即将被回调时插入ev_base->activequeues[ev_pri]中*/
-	int ev_pri;		
+	/* 优先级，事件发生即将被回调时插入ev_base->activequeues[ev_pri]中，越小优先级越高*/
+	int ev_pri;
 
 	//指定的回调函数与参数
 	void (*ev_callback)(int, short, void *arg);
@@ -262,7 +262,7 @@ struct event {
 	// 在活动队列被回调的时候，该变量说明发生了什么事件，event result的简称
 	int ev_res;		/* result passed to event callback */
     //标志位，标志该event已经被插入哪几个链表中,为EVLIST_*的多种组合
-	int ev_flags; 
+	int ev_flags;
 };
 #else
 struct event;
@@ -349,13 +349,13 @@ int event_base_dispatch(struct event_base *);
 
 /**
  Get the kernel event notification mechanism used by libevent.
- 
+
  @param eb the event_base structure returned by event_base_new()
  @return a string identifying the kernel event mechanism (kqueue, epoll, etc.)
  */
 const char *event_base_get_method(struct event_base *);
-        
-        
+
+
 /**
   Deallocate all memory associated with an event_base, and free the base.
 
@@ -393,7 +393,9 @@ int event_base_set(struct event_base *, struct event *);
  event_loop() flags
  */
 /*@{*/
+// 只循环一次
 #define EVLOOP_ONCE	0x01	/**< Block at most once. */
+// 不阻塞，也就是不会计算距离计时器最小触发时间进行睡眠
 #define EVLOOP_NONBLOCK	0x02	/**< Do not block. */
 /*@}*/
 

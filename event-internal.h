@@ -48,10 +48,10 @@ struct eventop {
 
 struct event_base {
     // 选择的i/o复用模型
-	const struct eventop *evsel; 
+	const struct eventop *evsel;
 	//调用i/o模型evsel->init返回的变量，
 	//之后调用与evsel相关的函数都会将该变量传入
-	void *evbase; 
+	void *evbase;
     //当前注册的event总数
 	int event_count;		/* counts number of total events */
     //处于活动队列的event总数，即将被回调的event
@@ -65,15 +65,16 @@ struct event_base {
 	// - 比如注册一个2s timeout event，2s过后该event会被放到该list等待被回调
 	// - 注册一个socket read event,当socket可读会将与该socket     关联的event放到list等待回调
 	//2. 指针数组的原因是要实现一个优先级，数组头优先级最高,先被调用
-	struct event_list **activequeues; 
-	// 优先级队列数 
-	int nactivequeues; 
+	//3. 越靠前优先级越大
+	struct event_list **activequeues;
+	// 优先级队列数
+	int nactivequeues;
 
 	/* signal handling info */
 	struct evsignal_info sig; //信号相关
 
 	struct event_list eventqueue; //插入的所有event
-	struct timeval event_tv;  
+	struct timeval event_tv;
 
 	struct min_heap timeheap; //二叉堆用于处理计时器
 
