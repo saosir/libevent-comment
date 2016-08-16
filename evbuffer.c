@@ -111,6 +111,7 @@ bufferevent_readcb(int fd, short event, void *arg)
 	if (bufev->wm_read.high != 0) {
 		howmuch = bufev->wm_read.high - EVBUFFER_LENGTH(bufev->input);
 		/* we might have lowered the watermark, stop reading */
+        // 缓冲区数据太多，高于高水位，停止读,不要在灌水了
 		if (howmuch <= 0) {
 			struct evbuffer *buf = bufev->input;
 			event_del(&bufev->ev_read);
@@ -119,7 +120,7 @@ bufferevent_readcb(int fd, short event, void *arg)
 			return;
 		}
 	}
-
+    // howmuch 为-1或者距离高水位的值
 	res = evbuffer_read(bufev->input, fd, howmuch);
 	if (res == -1) {
 		if (errno == EAGAIN || errno == EINTR)
@@ -138,9 +139,11 @@ bufferevent_readcb(int fd, short event, void *arg)
 
 	/* See if this callbacks meets the water marks */
 	len = EVBUFFER_LENGTH(bufev->input);
-	if (bufev->wm_read.low != 0 && len < bufev->wm_read.low) // 大于低水位才通知用户读取
+    // 小于低水位，不做处理
+	if (bufev->wm_read.low != 0 && len < bufev->wm_read.low) 
 		return;
-	if (bufev->wm_read.high != 0 && len >= bufev->wm_read.high) { // 大于高水位者不在从socket中读取,知道水位降下
+    // 大于高水位者不在从socket中读取,直到水位降下
+	if (bufev->wm_read.high != 0 && len >= bufev->wm_read.high) { 
 		struct evbuffer *buf = bufev->input;
 		event_del(&bufev->ev_read);
 
@@ -172,7 +175,7 @@ bufferevent_writecb(int fd, short event, void *arg)
 		what |= EVBUFFER_TIMEOUT;
 		goto error;
 	}
-
+    // 有数据就写
 	if (EVBUFFER_LENGTH(bufev->output)) {
 	    res = evbuffer_write(bufev->output, fd);
 	    if (res == -1) {
@@ -198,6 +201,7 @@ bufferevent_writecb(int fd, short event, void *arg)
 		    goto error;
 	}
 
+    // 还有数据需要写
 	if (EVBUFFER_LENGTH(bufev->output) != 0)
 		bufferevent_add(&bufev->ev_write, bufev->timeout_write);
 
@@ -205,6 +209,7 @@ bufferevent_writecb(int fd, short event, void *arg)
 	 * Invoke the user callback if our buffer is drained or below the
 	 * low watermark.
 	 */
+	 // 输出缓冲区已经降到底水位，通知用户充水
 	if (bufev->writecb != NULL &&
 	    EVBUFFER_LENGTH(bufev->output) <= bufev->wm_write.low)
 		(*bufev->writecb)(bufev, bufev->cbarg);

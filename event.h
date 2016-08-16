@@ -799,8 +799,11 @@ struct bufferevent {
 
 	struct evbuffer *input;
 	struct evbuffer *output;
-
+    //read 的高水位表示如果读缓冲区大于此值就不在读
+    //read 的低水位表示当缓冲区的值小于此值就开始读
 	struct event_watermark wm_read;
+    // write的高水位没用，低水位表示低于该值的时候，
+    // 通知用户往这里继续写继续灌水
 	struct event_watermark wm_write;
 
 	evbuffercb readcb;
