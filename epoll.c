@@ -62,11 +62,15 @@ struct evepoll {
 };
 
 struct epollop {
+    // 对应的event管理，通过fds[sock_fd]得到与socket关联的evepoll
 	struct evepoll *fds;
+    // fds的数量
 	int nfds;
+
+    // epoll相关
 	struct epoll_event *events;
 	int nevents;
-	int epfd;
+	int epfd /*epoll_create(32000)*/;
 };
 
 static void *epoll_init	(struct event_base *);
@@ -151,6 +155,8 @@ epoll_init(struct event_base *base)
 	return (epollop);
 }
 
+
+// 重新分配max大小存储event的数组
 static int
 epoll_recalc(struct event_base *base, void *arg, int max)
 {
@@ -170,6 +176,7 @@ epoll_recalc(struct event_base *base, void *arg, int max)
 			return (-1);
 		}
 		epollop->fds = fds;
+        // 清空后面数组
 		memset(fds + epollop->nfds, 0,
 		    (nfds - epollop->nfds) * sizeof(struct evepoll));
 		epollop->nfds = nfds;
@@ -185,7 +192,7 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	struct epoll_event *events = epollop->events;
 	struct evepoll *evep;
 	int i, res, timeout = -1;
-
+    // 得到毫秒msecond
 	if (tv != NULL)
 		timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 
@@ -202,15 +209,16 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			event_warn("epoll_wait");
 			return (-1);
 		}
-
+        // 产生中断，处理信号
 		evsignal_process(base);
 		return (0);
 	} else if (base->sig.evsignal_caught) {
+	    // 捕捉到信号
 		evsignal_process(base);
 	}
 
 	event_debug(("%s: epoll_wait reports %d", __func__, res));
-
+    // 处理socket读写
 	for (i = 0; i < res; i++) {
 		int what = events[i].events;
 		struct event *evread = NULL, *evwrite = NULL;
@@ -267,7 +275,7 @@ epoll_add(void *arg, struct event *ev)
 	struct epoll_event epev = {0, {0}};
 	struct evepoll *evep;
 	int fd, op, events;
-
+    // 信号处理
 	if (ev->ev_events & EV_SIGNAL)
 		return (evsignal_add(ev));
 
@@ -296,6 +304,7 @@ epoll_add(void *arg, struct event *ev)
 
 	epev.data.fd = fd;
 	epev.events = events;
+    // 假如epoll
 	if (epoll_ctl(epollop->epfd, op, ev->ev_fd, &epev) == -1)
 			return (-1);
 
@@ -332,13 +341,14 @@ epoll_del(void *arg, struct event *ev)
 		events |= EPOLLIN;
 	if (ev->ev_events & EV_WRITE)
 		events |= EPOLLOUT;
-
+    // 读写中的一个或者一个都没有
 	if ((events & (EPOLLIN|EPOLLOUT)) != (EPOLLIN|EPOLLOUT)) {
-		if ((events & EPOLLIN) && evep->evwrite != NULL) {
+        // 下面没看懂~
+		if ((events & EPOLLIN) && evep->evwrite != NULL) {// 读
 			needwritedelete = 0;
 			events = EPOLLOUT;
 			op = EPOLL_CTL_MOD;
-		} else if ((events & EPOLLOUT) && evep->evread != NULL) {
+		} else if ((events & EPOLLOUT) && evep->evread != NULL) {//写
 			needreaddelete = 0;
 			events = EPOLLIN;
 			op = EPOLL_CTL_MOD;

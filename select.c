@@ -63,19 +63,25 @@
 #ifndef _EVENT_HAVE_FD_MASK
 /* This type is mandatory, but Android doesn't define it. */
 #undef NFDBITS
-//32
-#define NFDBITS (sizeof(long)*8) 
+//32个bit位
+#define NFDBITS (sizeof(long)*8)
 typedef unsigned long fd_mask;
 #endif
 
 struct selectop {
-	int event_fds;		/* Highest fd in fd set *///select函数中
+    //select函数中最大的socket值
+	int event_fds;		/* Highest fd in fd set */
+
+    // 集合中的字节数，1个字节表示8位能存储8个socket，下面四个结合大小都一样
 	int event_fdsz;
+    // select输出集合
 	fd_set *event_readset_in;
 	fd_set *event_writeset_in;
+    // select结果结合
 	fd_set *event_readset_out;
 	fd_set *event_writeset_out;
-	struct event **event_r_by_fd; //文件描述符作为索引,获取与该文件描述相关的event*
+    //文件描述符作为索引,获取与该文件描述相关的event
+	struct event **event_r_by_fd;
 	struct event **event_w_by_fd;
 };
 
@@ -204,6 +210,7 @@ select_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 }
 
 
+// 将集合调整到fdsz大小
 static int
 select_resize(struct selectop *sop, int fdsz)
 {
@@ -215,7 +222,10 @@ select_resize(struct selectop *sop, int fdsz)
 	fd_set *writeset_out = NULL;
 	struct event **r_by_fd = NULL;
 	struct event **w_by_fd = NULL;
+    // select中使用bit来表示socket是否加入到集合中，如果bits[socket] == 1说明socket
+    // 在select集合当中，libevent没有使用默认的fd_set_t结构体，而是自己实现一个
 
+    // 4字节即sizeof(fd_mask)可以存储NFDBITS个event
 	n_events = (fdsz/sizeof(fd_mask)) * NFDBITS;
 	n_events_old = (sop->event_fdsz/sizeof(fd_mask)) * NFDBITS;
 
@@ -281,7 +291,6 @@ select_add(void *arg, struct event *ev)
 	 */
 	if (sop->event_fds < ev->ev_fd) {
 		int fdsz = sop->event_fdsz;
-        //begin{{{ 内存操作相关，浪费时间的话略过
         //一个fd_mask有32位，内保存32个文件描述符
 		if (fdsz < sizeof(fd_mask))
 			fdsz = sizeof(fd_mask);
@@ -297,8 +306,7 @@ select_add(void *arg, struct event *ev)
 				return (-1);
 			}
 		}
-		//}}}end 内存操作相关
-		
+
         //添加进来的fds文件描述符大于当前保存的文件描述符
         //更新sop->event_fds
 		sop->event_fds = ev->ev_fd;
