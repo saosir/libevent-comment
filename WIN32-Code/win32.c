@@ -49,6 +49,7 @@
 #include "event.h"
 #include "event-internal.h"
 
+// win3 的实现复杂许多，实现的比较精巧，只是win32平台下的select性能比较差
 #define XFREE(ptr) do { if (ptr) free(ptr); } while(0)
 
 extern struct event_list timequeue;
@@ -58,7 +59,7 @@ extern struct event_list signalqueue;
 #endif
 
 struct win_fd_set {
-	u_int fd_count;
+	u_int fd_count;// 已经使用fd_array的元素个数
 	SOCKET fd_array[1];
 };
 
@@ -74,12 +75,15 @@ void signal_process(void);
 int signal_recalc(void);
 #endif
 
-struct event_entry {	
-	RB_ENTRY(event_entry) node;	
-	SOCKET sock;//表示socket,同时也是二叉树的key	
-	int read_pos;//指向win32op-> readset_in-> fd_array所在的位置下标	
-	int write_pos;//同上	
-	struct event *read_event;	
+struct event_entry {
+	RB_ENTRY(event_entry) node;
+    //表示socket,同时也是二叉树的key
+	SOCKET sock;
+    // 指向win32op->readset_in->fd_array所在的位置下标，大于等于0说明已经在集合中
+    // 通过readset_in->fd_array[read_pos]得到关联的socket
+	int read_pos;
+	int write_pos;
+	struct event *read_event;
 	struct event *write_event;
 };
 
@@ -96,7 +100,7 @@ compare(struct event_entry *a, struct event_entry *b)
 }
 
 struct win32op {
-	int fd_setsz;//当前集合最大个数，即下面的槽数
+	int fd_setsz;//当前集合槽数，即win_fd_set->fd_array数组大小或者容量
 	struct win_fd_set *readset_in;
 	struct win_fd_set *writeset_in;
 	struct win_fd_set *readset_out;
@@ -126,6 +130,7 @@ struct eventop win32ops = {
 	0
 };
 
+// n-1因为win_fd_set中有一个长度为1的数组
 #define FD_SET_ALLOC_SIZE(n) ((sizeof(struct win_fd_set) + ((n)-1)*sizeof(SOCKET)))
 
 static int
@@ -158,14 +163,17 @@ timeval_to_ms(struct timeval *tv)
 	return ((tv->tv_sec * 1000) + (tv->tv_usec / 1000));
 }
 
+
+// 查找s对应的event，如果不存在根据create决定是否创建
 static struct event_entry*
 get_event_entry(struct win32op *op, SOCKET s, int create)
 {
 	struct event_entry key, *val;
 	key.sock = s;
 	val = RB_FIND(event_map, &op->event_root, &key);
-	if (val || !create)//找到或者找不到且不需要创建
+	if (val || !create)//找到或者找不到且不创建
 		return val;
+    // 创建一个借点
 	if (!(val = calloc(1, sizeof(struct event_entry)))) {
 		event_warn("%s: calloc", __func__);
 		return NULL;
@@ -180,6 +188,7 @@ static int
 do_fd_set(struct win32op *op, struct event_entry *ent, int read)
 {
 	SOCKET s = ent->sock;
+    // 得到读集合或者写集合
 	struct win_fd_set *set = read ? op->readset_in : op->writeset_in;
 	if (read) {
 		if (ent->read_pos >= 0)//已经存在于readset_in
@@ -188,10 +197,12 @@ do_fd_set(struct win32op *op, struct event_entry *ent, int read)
 		if (ent->write_pos >= 0)
 			return (0);
 	}
+    // 内存不够用
 	if (set->fd_count == op->fd_setsz) {
 		if (realloc_fd_sets(op, op->fd_setsz*2))
 			return (-1);
 		/* set pointer will have changed and needs reiniting! */
+        // 重新分配内存，可能导致原来集合指向的内存改变
 		set = read ? op->readset_in : op->writeset_in;
 	}
 	set->fd_array[set->fd_count] = s;//放到尾部
@@ -216,10 +227,13 @@ do_fd_clear(struct win32op *op, struct event_entry *ent, int read)
 	}
 	if (i < 0)//并不存在于集合中
 		return (0);
-	if (--set->fd_count != i) {//所在位置不是最后一个的话
+    //所在位置不是最后一个的话，用最后一个位置覆盖删除的位置
+	if (--set->fd_count != i) {
 		struct event_entry *ent2;
 		SOCKET s2;
-		s2 = set->fd_array[i] = set->fd_array[set->fd_count];//用最后一个位置覆盖删除的位置
+        //  覆盖操作
+		s2 = set->fd_array[i] = set->fd_array[set->fd_count];
+        // 跟新红黑树中对应event在fd_array的位置
 		ent2 = get_event_entry(op, s2, 0);
 		if (!ent) /* This indicates a bug. */
 			return (0);
@@ -322,6 +336,7 @@ win32_del(void *op, struct event *ev)
 		do_fd_clear(win32op, ent, 0);
 		ent->write_event = NULL;
 	}
+    // 与该socket关联的读写event都被删除，从红黑树中删除
 	if (!ent->read_event && !ent->write_event) {
 		RB_REMOVE(event_map, &win32op->event_root, ent);
 		free(ent);
@@ -369,6 +384,7 @@ win32_dispatch(struct event_base *base, void *op,
 
 	if (!fd_count) {
 		/* Windows doesn't like you to call select() with no sockets */
+        // 集合为0在windows下调用select可能出错
 		Sleep(timeval_to_ms(tv));
 		evsignal_process(base);
 		return (0);
@@ -382,13 +398,17 @@ win32_dispatch(struct event_base *base, void *op,
 	event_debug(("%s: select returned %d", __func__, res));
 
 	if(res <= 0) {
+        // 系统调用select被中断
 		evsignal_process(base);
 		return res;
 	} else if (base->sig.evsignal_caught) {
+	    // 捕捉到信号
 		evsignal_process(base);
 	}
 
+    // 有socket可读
 	if (win32op->readset_out->fd_count) {
+        // 循环遍历集合中的所有可读socket，放入活动队列
 		i = rand() % win32op->readset_out->fd_count;
 		for (j=0; j<win32op->readset_out->fd_count; ++j) {
 			if (++i >= win32op->readset_out->fd_count)
@@ -398,6 +418,7 @@ win32_dispatch(struct event_base *base, void *op,
 				event_active(ent->read_event, EV_READ, 1);
 		}
 	}
+    // 同上
 	if (win32op->exset_out->fd_count) {
 		i = rand() % win32op->exset_out->fd_count;
 		for (j=0; j<win32op->exset_out->fd_count; ++j) {
@@ -408,6 +429,7 @@ win32_dispatch(struct event_base *base, void *op,
 				event_active(ent->read_event, EV_READ, 1);
 		}
 	}
+    // 同上
 	if (win32op->writeset_out->fd_count) {
 		i = rand() % win32op->writeset_out->fd_count;
 		for (j=0; j<win32op->writeset_out->fd_count; ++j) {
