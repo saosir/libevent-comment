@@ -193,7 +193,7 @@ typedef unsigned short u_short;
 // 活动队列，插入这个链表说明即将被回调，
 // event_base中的activequeues，有优先级大小
 #define EVLIST_ACTIVE	0x08
-
+// 信号事件就是一个内部event，用于专门处理信号回调
 #define EVLIST_INTERNAL	0x10
 // 初始化的时候用的
 #define EVLIST_INIT	0x80

@@ -74,6 +74,8 @@ static void evsignal_handler(int sig);
 #define error_is_eagain(err) ((err) == EAGAIN)
 #endif
 
+
+// 仅仅用于唤醒，读取socket里面的缓冲数据然后丢弃
 /* Callback for when the signal handler write a byte to our signaling socket */
 static void
 evsignal_cb(int fd, short what, void *arg)
@@ -107,7 +109,7 @@ evsignal_init(struct event_base *base)
 {
 	int i;
 
-	/* 
+	/*
 	 * Our signal handler is going to write to one end of the socket
 	 * pair to wake up our event loop.  The event loop then scans for
 	 * signals that got delivered.
@@ -134,8 +136,8 @@ evsignal_init(struct event_base *base)
 	for (i = 0; i < NSIG; ++i)
 		TAILQ_INIT(&base->sig.evsigevents[i]);
 
-        evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
-        evutil_make_socket_nonblocking(base->sig.ev_signal_pair[1]);
+    evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
+    evutil_make_socket_nonblocking(base->sig.ev_signal_pair[1]);
 
 	event_set(&base->sig.ev_signal, base->sig.ev_signal_pair[1],
 		EV_READ | EV_PERSIST, evsignal_cb, &base->sig.ev_signal);
@@ -163,6 +165,7 @@ _evsignal_set_handler(struct event_base *base,
 	 * resize saved signal handler array up to the highest signal number.
 	 * a dynamic array is used to keep footprint on the low side.
 	 */
+	 // 超过当前能存储的容量，重新分配内存
 	if (evsignal >= sig->sh_old_max) {
 		int new_max = evsignal + 1;
 		event_debug(("%s: evsignal (%d) >= sh_old_max (%d), resizing",
@@ -172,7 +175,7 @@ _evsignal_set_handler(struct event_base *base,
 			event_warn("realloc");
 			return (-1);
 		}
-
+        // 清空后面内存
 		memset((char *)p + sig->sh_old_max * sizeof(*sig->sh_old),
 		    0, (new_max - sig->sh_old_max) * sizeof(*sig->sh_old));
 
@@ -201,6 +204,7 @@ _evsignal_set_handler(struct event_base *base,
 		return (-1);
 	}
 #else
+    // 处理没有sigaction API的情况，只需要管理一个回调
 	if ((sh = signal(evsignal, handler)) == SIG_ERR) {
 		event_warn("signal");
 		free(sig->sh_old[evsignal]);
@@ -246,6 +250,7 @@ evsignal_add(struct event *ev)
 	return (0);
 }
 
+// 设置会sh_old存储的信号处理信息
 int
 _evsignal_restore_handler(struct event_base *base, int evsignal)
 {
@@ -292,10 +297,11 @@ evsignal_del(struct event *ev)
 		return (0);
 
 	event_debug(("%s: %p: restoring signal handler", __func__, ev));
-
+    // 还原之前的信号处理
 	return (_evsignal_restore_handler(ev->ev_base, EVENT_SIGNAL(ev)));
 }
 
+// 所有的信号处理都由该回调函数完成，主要的工作就是往
 static void
 evsignal_handler(int sig)
 {
@@ -307,15 +313,17 @@ evsignal_handler(int sig)
 			__func__, sig);
 		return;
 	}
-
+    // 记录捕捉到信号的信息
 	evsignal_base->sig.evsigcaught[sig]++;
 	evsignal_base->sig.evsignal_caught = 1;
 
 #ifndef HAVE_SIGACTION
+    // 继续捕捉该信号
 	signal(sig, evsignal_handler);
 #endif
 
 	/* Wake up our notification mechanism */
+    // 通知唤醒event loop 处理信号回调
 	send(evsignal_base->sig.ev_signal_pair[0], "a", 1, 0);
 	errno = save_errno;
 }
@@ -327,17 +335,19 @@ evsignal_process(struct event_base *base)
 	struct event *ev, *next_ev;
 	sig_atomic_t ncalls;
 	int i;
-	
+
 	base->sig.evsignal_caught = 0;
 	for (i = 1; i < NSIG; ++i) {
+        // 捕捉到多少次，就要回调对应的event对调多少次
 		ncalls = sig->evsigcaught[i];
 		if (ncalls == 0)
 			continue;
 		sig->evsigcaught[i] -= ncalls;
-
+        // 将监听信号对应的所有event放入活动队列中
 		for (ev = TAILQ_FIRST(&sig->evsigevents[i]);
 		    ev != NULL; ev = next_ev) {
 			next_ev = TAILQ_NEXT(ev, ev_signal_next);
+            // 非永久事件需要删除，因此只会通知一次，
 			if (!(ev->ev_events & EV_PERSIST))
 				event_del(ev);
 			event_active(ev, EV_SIGNAL, ncalls);
@@ -354,6 +364,7 @@ evsignal_dealloc(struct event_base *base)
 		event_del(&base->sig.ev_signal);
 		base->sig.ev_signal_added = 0;
 	}
+    // 还原之前的信号处理回调
 	for (i = 0; i < NSIG; ++i) {
 		if (i < base->sig.sh_old_max && base->sig.sh_old[i] != NULL)
 			_evsignal_restore_handler(base, i);
