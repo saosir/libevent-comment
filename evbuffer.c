@@ -50,6 +50,15 @@
 #include "evutil.h"
 #include "event.h"
 
+
+// bufferevent 读写缓冲区，当读完成或者写完成的时候，就会通知用户
+// 这样就相当于一个异步的接口，虽然本质上是同步，但是极大的方便
+// 上层代码的编写与使用，bufferevent需要用户提供readcb/writecb/errorcb
+// 三个回调接口用于通知，同时还提供了一种高低水位的概念:
+// 1. 读的高低水位表示当缓冲区数据高于高水位就不在读，低于低水位不再通知用户读成功；
+// 2. 写的高低水位表示当缓冲区数据低于低水位之后，写成功事件才会通知用户，这样以便用户
+// 继续往缓冲区填写数据，高水位没有用，因为只要缓冲区有数据就会被写
+
 /* prototypes */
 
 void bufferevent_read_pressure_cb(struct evbuffer *, size_t, size_t, void *);
@@ -68,7 +77,7 @@ bufferevent_add(struct event *ev, int timeout)
 	return (event_add(ev, ptv));
 }
 
-/* 
+/*
  * This callback is executed when the size of the input buffer changes.
  * We use it to apply back pressure on the reading side.
  * evbuffer 大小改变的时候会被调用
@@ -78,7 +87,7 @@ void
 bufferevent_read_pressure_cb(struct evbuffer *buf, size_t old, size_t now,
     void *arg) {
 	struct bufferevent *bufev = arg;
-	/* 
+	/*
 	 * If we are below the watermark then reschedule reading if it's
 	 * still enabled.
 	 */
@@ -139,11 +148,11 @@ bufferevent_readcb(int fd, short event, void *arg)
 
 	/* See if this callbacks meets the water marks */
 	len = EVBUFFER_LENGTH(bufev->input);
-    // 小于低水位，不做处理
-	if (bufev->wm_read.low != 0 && len < bufev->wm_read.low) 
+    // 小于低水位，不做处理，只用高于低水位才会通知用户读成功
+	if (bufev->wm_read.low != 0 && len < bufev->wm_read.low)
 		return;
     // 大于高水位者不在从socket中读取,直到水位降下
-	if (bufev->wm_read.high != 0 && len >= bufev->wm_read.high) { 
+	if (bufev->wm_read.high != 0 && len >= bufev->wm_read.high) {
 		struct evbuffer *buf = bufev->input;
 		event_del(&bufev->ev_read);
 

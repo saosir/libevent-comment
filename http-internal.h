@@ -59,7 +59,7 @@ struct evhttp_connection {
 	struct event close_ev;
 	struct evbuffer *input_buffer;
 	struct evbuffer *output_buffer;
-	
+
 	char *bind_address;		/* address to use for binding the src */
 	u_short bind_port;		/* local port for binding the src */
 
@@ -74,20 +74,20 @@ struct evhttp_connection {
 	int timeout;			/* timeout in seconds for events */
 	int retry_cnt;			/* retry count */
 	int retry_max;			/* maximum number of retries */
-	
+
 	enum evhttp_connection_state state;
 
 	/* for server connections, the http server they are connected with */
 	struct evhttp *http_server;
 
 	TAILQ_HEAD(evcon_requestq, evhttp_request) requests;
-	
+
 						   void (*cb)(struct evhttp_connection *, void *);
 	void *cb_arg;
-	
+
 	void (*closecb)(struct evhttp_connection *, void *);
 	void *closecb_arg;
-
+    // 该连接归属与哪个event loop
 	struct event_base *base;
 };
 

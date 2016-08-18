@@ -196,6 +196,7 @@ struct {
 #endif
 
 	/* the connection object that this request belongs to */
+    // 负责网络收发与事件通知
 	struct evhttp_connection *evcon;
 	int flags;
 #define EVHTTP_REQ_OWN_CONNECTION	0x0001
