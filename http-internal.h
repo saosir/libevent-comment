@@ -75,7 +75,10 @@ struct evhttp_connection {
 #define EVHTTP_CON_OUTGOING	0x0002  /* multiple requests possible */
 #define EVHTTP_CON_CLOSEDETECT  0x0004  /* detecting if persistent close */
     // 超时、连接尝试次数、最大尝试次数
+
+    // timeout默认为0，不超时
 	int timeout;			/* timeout in seconds for events */
+    // 默认不尝试连接
 	int retry_cnt;			/* retry count */
 	int retry_max;			/* maximum number of retries */
 

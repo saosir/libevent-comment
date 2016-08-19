@@ -328,6 +328,7 @@ evhttp_method(enum evhttp_cmd_type type)
 	return (method);
 }
 
+// 将event加入event loop，timeout表示计时器
 static void
 evhttp_add_event(struct event *ev, int timeout, int default_timeout)
 {
@@ -342,6 +343,7 @@ evhttp_add_event(struct event *ev, int timeout, int default_timeout)
 	}
 }
 
+// 输出connection的数据output_buffer，有EV_WRITE事件后回调evhttp_write进行写入socket
 void
 evhttp_write_buffer(struct evhttp_connection *evcon,
     void (*cb)(struct evhttp_connection *, void *), void *arg)
@@ -353,6 +355,7 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 	evcon->cb_arg = arg;
 
 	/* check if the event is already pending */
+    // 如果已经在event loop中，删除重新添加
 	if (event_pending(&evcon->ev, EV_WRITE|EV_TIMEOUT, NULL))
 		event_del(&evcon->ev);
 
@@ -518,6 +521,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	}
 }
 
+// 将req序列化到evcon的输出缓冲区output_buffer
 void
 evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
@@ -532,13 +536,15 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 	} else {
 		evhttp_make_header_response(evcon, req);
 	}
-
+    // 输出头部
 	TAILQ_FOREACH(header, req->output_headers, next) {
 		evbuffer_add_printf(evcon->output_buffer, "%s: %s\r\n",
 		    header->key, header->value);
 	}
+    // http结束符
 	evbuffer_add(evcon->output_buffer, "\r\n", 2);
 
+    // http post数据
 	if (EVBUFFER_LENGTH(req->output_buffer) > 0) {
 		/*
 		 * For a request, we add the POST data, for a reply, this
@@ -693,6 +699,7 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
 		(*cb)(NULL, cb_arg);
 }
 
+// 数据可写之后回调，将output缓冲区写入socket
 void
 evhttp_write(int fd, short what, void *arg)
 {
@@ -716,7 +723,7 @@ evhttp_write(int fd, short what, void *arg)
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
-
+    // 还有数据要写
 	if (EVBUFFER_LENGTH(evcon->output_buffer) != 0) {
 		evhttp_add_event(&evcon->ev,
 		    evcon->timeout, HTTP_WRITE_TIMEOUT);
@@ -1071,7 +1078,7 @@ evhttp_connection_set_local_port(struct evhttp_connection *evcon,
 	evcon->bind_port = port;
 }
 
-// 从evcon请求队列中取出一个请求
+// 从evcon请求队列中取出一个请求，发送一个写请求，connection状态变为EVCON_WRITING
 static void
 evhttp_request_dispatch(struct evhttp_connection* evcon)
 {
@@ -1096,6 +1103,7 @@ evhttp_request_dispatch(struct evhttp_connection* evcon)
 }
 
 /* Reset our connection state */
+// 重置connection，从event loop删除event，关闭socket，清空缓冲区
 void
 evhttp_connection_reset(struct evhttp_connection *evcon)
 {
@@ -1104,14 +1112,15 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 
 	if (evcon->fd != -1) {
 		/* inform interested parties about connection close */
+        // 通知回调，已经关闭connection
 		if (evhttp_connected(evcon) && evcon->closecb != NULL)
 			(*evcon->closecb)(evcon, evcon->closecb_arg);
-
+        // 关闭socket
 		EVUTIL_CLOSESOCKET(evcon->fd);
 		evcon->fd = -1;
 	}
 	evcon->state = EVCON_DISCONNECTED;
-
+    // 清零缓冲区    
 	evbuffer_drain(evcon->input_buffer,
 	    EVBUFFER_LENGTH(evcon->input_buffer));
 	evbuffer_drain(evcon->output_buffer,
@@ -1157,7 +1166,8 @@ evhttp_connection_retry(int fd, short what, void *arg)
 /*
  * Call back for asynchronous connection attempt.
  */
-
+// 连接之后，发送一个EV_WRITE事件之后的回调，此时connection状态变为EVCON_IDLE
+// 然后调用evhttp_request_dispatch发送一个req
 static void
 evhttp_connectioncb(int fd, short what, void *arg)
 {
@@ -1199,9 +1209,12 @@ evhttp_connectioncb(int fd, short what, void *arg)
 	return;
 
  cleanup:
+    // 连接远端失败
 	if (evcon->retry_max < 0 || evcon->retry_cnt < evcon->retry_max) {
 		evtimer_set(&evcon->ev, evhttp_connection_retry, evcon);
 		EVHTTP_BASE_SET(evcon, &evcon->ev);
+        // 这里的超时值是计时器，计时器触发的时候回调evhttp_connection_retry重新连接远端
+        // 尝试次数越多，尝试连接的间隔就约大，为2的次幂递增
 		evhttp_add_event(&evcon->ev, MIN(3600, 2 << evcon->retry_cnt),
 		    HTTP_CONNECT_TIMEOUT);
 		evcon->retry_cnt++;
@@ -1210,6 +1223,7 @@ evhttp_connectioncb(int fd, short what, void *arg)
 	evhttp_connection_reset(evcon);
 
 	/* for now, we just signal all requests by executing their callbacks */
+    // 放弃所有的req
 	while (TAILQ_FIRST(&evcon->requests) != NULL) {
 		struct evhttp_request *request = TAILQ_FIRST(&evcon->requests);
 		TAILQ_REMOVE(&evcon->requests, request, next);
@@ -1702,7 +1716,7 @@ evhttp_read_header(struct evhttp_connection *evcon, struct evhttp_request *req)
  * only numeric hostnames so that non-blocking DNS resolution can
  * happen elsewhere.
  */
-
+// 新建一个connction连接(未真正连接到对端)
 struct evhttp_connection *
 evhttp_connection_new(const char *address, unsigned short port)
 {
@@ -1829,7 +1843,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
  * If the connection object is not connected to the web server already,
  * this will start the connection.
  */
-
+// 将一个req与connection关联，发送或者加入到connection的队列中
 int
 evhttp_make_request(struct evhttp_connection *evcon,
     struct evhttp_request *req,
@@ -1858,6 +1872,7 @@ evhttp_make_request(struct evhttp_connection *evcon,
 	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
 	/* If the connection object is not connected; make it so */
+    // 如果connection未与远程连接，先连接远程端
 	if (!evhttp_connected(evcon))
 		return (evhttp_connection_connect(evcon));
 
@@ -2501,7 +2516,7 @@ evhttp_set_gencb(struct evhttp *http,
 /*
  * Request related functions
  */
-/* 发送一个http请求， 完成之后回调 cb */
+/* 创建初始化一个http请求， 完成之后回调 cb (没有与connection关联)*/
 struct evhttp_request *
 evhttp_request_new(void (*cb)(struct evhttp_request *, void *), void *arg)
 {
@@ -2549,6 +2564,7 @@ evhttp_request_new(void (*cb)(struct evhttp_request *, void *), void *arg)
 	return (NULL);
 }
 
+// 释放请求req
 void
 evhttp_request_free(struct evhttp_request *req)
 {

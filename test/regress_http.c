@@ -1068,8 +1068,8 @@ http_close_detection(int with_delay)
 
 	/* 2 second timeout */
 	evhttp_set_timeout(http, 2);
-
-	evcon = evhttp_connection_new("127.0.0.1", port);//evcon超时会自动重连
+    //evcon超时会自动重连
+	evcon = evhttp_connection_new("127.0.0.1", port);
 	if (evcon == NULL) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
