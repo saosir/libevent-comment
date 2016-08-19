@@ -108,11 +108,11 @@
 #endif
 
 static int
-fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host, 
+fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	size_t hostlen, char *serv, size_t servlen, int flags)
 {
         struct sockaddr_in *sin = (struct sockaddr_in *)sa;
-        
+
         if (serv != NULL) {
 				char tmpserv[16];
 				evutil_snprintf(tmpserv, sizeof(tmpserv),
@@ -130,11 +130,11 @@ fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
                                 return (0);
                 } else {
 						struct hostent *hp;
-                        hp = gethostbyaddr((char *)&sin->sin_addr, 
+                        hp = gethostbyaddr((char *)&sin->sin_addr,
                             sizeof(struct in_addr), AF_INET);
                         if (hp == NULL)
                                 return (-2);
-                        
+
                         if (strlcpy(host, hp->h_name, hostlen) >= hostlen)
                                 return (-1);
                         else
@@ -418,6 +418,7 @@ evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 	}
 }
 
+// 检查http头部字段是否有keep-alive
 static int
 evhttp_is_connection_keepalive(struct evkeyvalq* headers)
 {
@@ -492,6 +493,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 			 * user did not give it, this is required for
 			 * persistent connections to work.
 			 */
+			 // 添加 Content-Length 字段到http
 			evhttp_maybe_add_content_length_header(
 				req->output_headers,
 				(long)EVBUFFER_LENGTH(req->output_buffer));
@@ -1069,6 +1071,7 @@ evhttp_connection_set_local_port(struct evhttp_connection *evcon,
 	evcon->bind_port = port;
 }
 
+// 从evcon请求队列中取出一个请求
 static void
 evhttp_request_dispatch(struct evhttp_connection* evcon)
 {
@@ -1782,7 +1785,8 @@ evhttp_connection_get_peer(struct evhttp_connection *evcon,
 	*port = evcon->port;
 }
 
-// 连接远程socket
+// 连接远程socket，并将evcon的event添加到event loop当中，此时的connection状态
+// 为EVCON_CONNECTING
 int
 evhttp_connection_connect(struct evhttp_connection *evcon)
 {
@@ -1793,7 +1797,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 
 	assert(!(evcon->flags & EVHTTP_CON_INCOMING));
 	evcon->flags |= EVHTTP_CON_OUTGOING;
-
+    // 绑定创建socket
 	evcon->fd = bind_socket(
 		evcon->bind_address, evcon->bind_port, 0 /*reuse*/);
 	if (evcon->fd == -1) {
@@ -1801,15 +1805,18 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 			__func__, evcon->bind_address));
 		return (-1);
 	}
-
+    // 连接对端
 	if (socket_connect(evcon->fd, evcon->address, evcon->port) == -1) {
 		EVUTIL_CLOSESOCKET(evcon->fd); evcon->fd = -1;
 		return (-1);
 	}
 
 	/* Set up a callback for successful connection setup */
+    // EV_WRITE请求，发起连接就发送get或者post
 	event_set(&evcon->ev, evcon->fd, EV_WRITE, evhttp_connectioncb, evcon);
+    // 将connection的event与其event loop关联起来
 	EVHTTP_BASE_SET(evcon, &evcon->ev);
+    // 加入event loop，超时HTTP_CONNECT_TIMEOUT没响应回调evhttp_connectioncb通知
 	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_CONNECT_TIMEOUT);
 
 	evcon->state = EVCON_CONNECTING;
@@ -1847,6 +1854,7 @@ evhttp_make_request(struct evhttp_connection *evcon,
 	req->evcon = evcon;
 	assert(!(req->flags & EVHTTP_REQ_OWN_CONNECTION));
 
+    // 要排队等候
 	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
 	/* If the connection object is not connected; make it so */
@@ -1858,6 +1866,9 @@ evhttp_make_request(struct evhttp_connection *evcon,
 	 * then we can dispatch this request immediately.  Otherwise, it
 	 * will be dispatched once the pending requests are completed.
 	 */
+	 // 如果connection已经连接远端，而且来的是第一个请求，可以
+	 // 马上将这个请求写入socket等待回调，如果不是第一个请求
+	 // 说明前面已经有请求需要处理，这个请求就要排队等待
 	if (TAILQ_FIRST(&evcon->requests) == req)
 		evhttp_request_dispatch(evcon);
 

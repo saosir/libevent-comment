@@ -55,34 +55,41 @@ struct evhttp_connection {
 	TAILQ_ENTRY(evhttp_connection) (next);
 
 	int fd;
+    // 添加到event loop当中
 	struct event ev;
 	struct event close_ev;
+    // 输入输出缓冲区
 	struct evbuffer *input_buffer;
 	struct evbuffer *output_buffer;
 
+    // 四元祖
 	char *bind_address;		/* address to use for binding the src */
 	u_short bind_port;		/* local port for binding the src */
 
 	char *address;			/* address to connect to */
 	u_short port;
 
+
 	int flags;
 #define EVHTTP_CON_INCOMING	0x0001	/* only one request on it ever */
 #define EVHTTP_CON_OUTGOING	0x0002  /* multiple requests possible */
 #define EVHTTP_CON_CLOSEDETECT  0x0004  /* detecting if persistent close */
-
+    // 超时、连接尝试次数、最大尝试次数
 	int timeout;			/* timeout in seconds for events */
 	int retry_cnt;			/* retry count */
 	int retry_max;			/* maximum number of retries */
 
+    // 当前connection的连接状态
 	enum evhttp_connection_state state;
 
+    // 归属于哪个http server 管理
 	/* for server connections, the http server they are connected with */
 	struct evhttp *http_server;
 
+    // http req请求队列，归属于 connection管理的所有请求
 	TAILQ_HEAD(evcon_requestq, evhttp_request) requests;
 
-						   void (*cb)(struct evhttp_connection *, void *);
+    void (*cb)(struct evhttp_connection *, void *);
 	void *cb_arg;
 
 	void (*closecb)(struct evhttp_connection *, void *);
