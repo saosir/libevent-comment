@@ -217,14 +217,16 @@ struct {
 	char major;			/* HTTP Major number */
 	char minor;			/* HTTP Minor number */
 
+    // http响应首行的编码
 	int response_code;		/* HTTP Response code */
+    // http响应首行内容
 	char *response_code_line;	/* Readable response */
 
 	struct evbuffer *input_buffer;	/* read data */
 	ev_int64_t ntoread;
 	int chunked:1,                  /* a chunked request */
 	    userdone:1;                 /* the user has sent all data */
-    
+
     // post的数据区
 	struct evbuffer *output_buffer;	/* outgoing post or data */
 

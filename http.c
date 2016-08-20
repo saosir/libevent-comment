@@ -522,6 +522,8 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 }
 
 // 将req序列化到evcon的输出缓冲区output_buffer
+// 1. 序列化headers，请求调用evhttp_make_header_request，响应调用evhttp_make_header_response
+// 2. 将数据域附加到evcon的输出缓冲区尾部
 void
 evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
@@ -544,7 +546,7 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
     // http结束符
 	evbuffer_add(evcon->output_buffer, "\r\n", 2);
 
-    // http post数据
+    // http post数据或者响应数据
 	if (EVBUFFER_LENGTH(req->output_buffer) > 0) {
 		/*
 		 * For a request, we add the POST data, for a reply, this
@@ -729,7 +731,7 @@ evhttp_write(int fd, short what, void *arg)
 		    evcon->timeout, HTTP_WRITE_TIMEOUT);
 		return;
 	}
-
+    // 写完之后调用evhttp_write_connectioncb
 	/* Activate our call back */
 	if (evcon->cb != NULL)
 		(*evcon->cb)(evcon, evcon->cb_arg);
@@ -755,12 +757,13 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 		req->evcon = NULL;
 
 		evcon->state = EVCON_IDLE;
-
+        // 通过http是否有keep-alive决定是否要关闭此socket
 		need_close =
 		    evhttp_is_connection_close(req->flags, req->input_headers)||
 		    evhttp_is_connection_close(req->flags, req->output_headers);
 
 		/* check if we got asked to close the connection */
+        // 确认是否断开socket
 		if (need_close)
 			evhttp_connection_reset(evcon);
 
@@ -769,6 +772,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 			 * We have more requests; reset the connection
 			 * and deal with the next request.
 			 */
+			 // 如果还有req需要处理，重新连接然后继续发送
 			if (!evhttp_connected(evcon))
 				evhttp_connection_connect(evcon);
 			else
@@ -934,7 +938,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
  * the data that we wanted to read.
  * Execute callback when done.
  */
-
+// 从socket读取数据放到input_buffer
 void
 evhttp_read(int fd, short what, void *arg)
 {
@@ -956,12 +960,14 @@ evhttp_read(int fd, short what, void *arg)
 			event_debug(("%s: evbuffer_read", __func__));
 			evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		} else {
+		    // read的时候产生中断，继续读
 			evhttp_add_event(&evcon->ev, evcon->timeout,
 			    HTTP_READ_TIMEOUT);
 		}
 		return;
 	} else if (n == 0) {
 		/* Connection closed */
+        // 数据读取完毕，需要close socket
 		evcon->state = EVCON_DISCONNECTED;
 		evhttp_connection_done(evcon);
 		return;
@@ -1120,7 +1126,7 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 		evcon->fd = -1;
 	}
 	evcon->state = EVCON_DISCONNECTED;
-    // 清零缓冲区    
+    // 清零缓冲区
 	evbuffer_drain(evcon->input_buffer,
 	    EVBUFFER_LENGTH(evcon->input_buffer));
 	evbuffer_drain(evcon->output_buffer,
@@ -1844,6 +1850,8 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
  * this will start the connection.
  */
 // 将一个req与connection关联，发送或者加入到connection的队列中
+// type: http get 或者 post
+// 对端url
 int
 evhttp_make_request(struct evhttp_connection *evcon,
     struct evhttp_request *req,
@@ -1967,7 +1975,7 @@ evhttp_send_error(struct evhttp_request *req, int error, const char *reason)
 }
 
 /* Requires that headers and response code are already set up */
-
+// 发送req，1. 将databuf添加到req的output_buffer尾部 2. 序列化req到evcon的output_buffer
 static inline void
 evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 {
@@ -1985,7 +1993,7 @@ evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 
 	/* xxx: not sure if we really should expose the data buffer this way */
 	if (databuf != NULL)
-		evbuffer_add_buffer(req->output_buffer, databuf);
+		evbuffer_add_buffer(req->output_buffer, databuf); // 注意是在req的尾部添加
 
 	/* Adds headers to the response */
 	evhttp_make_header(evcon, req);
@@ -1993,6 +2001,7 @@ evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 	evhttp_write_buffer(evcon, evhttp_send_done, NULL);
 }
 
+// 响应http，code和reason设置的是http首行头部，databuf为数据域
 void
 evhttp_send_reply(struct evhttp_request *req, int code, const char *reason,
     struct evbuffer *databuf)
