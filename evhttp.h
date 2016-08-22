@@ -198,6 +198,7 @@ struct {
 	/* the connection object that this request belongs to */
     // 负责网络收发与事件通知
 	struct evhttp_connection *evcon;
+    // req的类型 EVHTTP_REQ_OWN_CONNECTION
 	int flags;
 #define EVHTTP_REQ_OWN_CONNECTION	0x0001
 #define EVHTTP_PROXY_REQUEST		0x0002
@@ -209,6 +210,7 @@ struct {
 	char *remote_host;
 	u_short remote_port;
 
+    // EVHTTP_REQUEST 或者 EVHTTP_RESPONSE
 	enum evhttp_request_kind kind;
 	enum evhttp_cmd_type type;
 

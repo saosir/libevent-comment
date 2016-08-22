@@ -408,6 +408,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	}
 }
 
+// 头部中是否有 Connection:close
 static int
 evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 {
@@ -951,6 +952,7 @@ evhttp_read(int fd, short what, void *arg)
 		evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
 		return;
 	}
+    // 从socket读
 	n = evbuffer_read(buf, fd, -1);
 	len = EVBUFFER_LENGTH(buf);
 	event_debug(("%s: got %d on %d\n", __func__, n, fd));
@@ -967,7 +969,7 @@ evhttp_read(int fd, short what, void *arg)
 		return;
 	} else if (n == 0) {
 		/* Connection closed */
-        // 数据读取完毕，需要close socket
+        // 数据读取完毕，需要close socket，回调与req关联的cb
 		evcon->state = EVCON_DISCONNECTED;
 		evhttp_connection_done(evcon);
 		return;
@@ -1849,7 +1851,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
  * If the connection object is not connected to the web server already,
  * this will start the connection.
  */
-// 将一个req与connection关联，发送或者加入到connection的队列中
+// 将一个req与connection关联，发送或者加入到connection的队列中，将req->kind设置为request请求
 // type: http get 或者 post
 // 对端url
 int
@@ -1902,7 +1904,7 @@ evhttp_make_request(struct evhttp_connection *evcon,
  * Reads data from file descriptor into request structure
  * Request structure needs to be set up correctly.
  */
-
+// 读取http请求
 void
 evhttp_start_read(struct evhttp_connection *evcon)
 {
@@ -1916,6 +1918,7 @@ evhttp_start_read(struct evhttp_connection *evcon)
 	evcon->state = EVCON_READING_FIRSTLINE;
 }
 
+// 发送一个req后的回调
 static void
 evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 {
@@ -1933,6 +1936,7 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	    evhttp_is_connection_close(req->flags, req->output_headers);
 
 	assert(req->flags & EVHTTP_REQ_OWN_CONNECTION);
+    // 发送完成释放req
 	evhttp_request_free(req);
 
 	if (need_close) {
@@ -1941,6 +1945,7 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	}
 
 	/* we have a persistent connection; try to accept another request. */
+    // keep-alive，复用这个socket，重新从这个evcon读取req
 	if (evhttp_associate_new_request_with_connection(evcon) == -1)
 		evhttp_connection_free(evcon);
 }
@@ -2001,7 +2006,7 @@ evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 	evhttp_write_buffer(evcon, evhttp_send_done, NULL);
 }
 
-// 响应http，code和reason设置的是http首行头部，databuf为数据域
+// 服务端响应http，code和reason设置的是http首行头部，databuf为数据域
 void
 evhttp_send_reply(struct evhttp_request *req, int code, const char *reason,
     struct evbuffer *databuf)
@@ -2072,6 +2077,7 @@ evhttp_send_reply_end(struct evhttp_request *req)
 	}
 }
 
+// 设置req的code reason
 void
 evhttp_response_code(struct evhttp_request *req, int code, const char *reason)
 {
@@ -2525,7 +2531,10 @@ evhttp_set_gencb(struct evhttp *http,
 /*
  * Request related functions
  */
-/* 创建初始化一个http请求， 完成之后回调 cb (没有与connection关联)*/
+/* 创建初始化一个http请求， 完成之后回调 cb (没有与connection关联)，初始化为EVHTTP_RESPONSE
+    在 evhttp_make_request中会被设置为EVHTTP_REQUEST
+
+*/
 struct evhttp_request *
 evhttp_request_new(void (*cb)(struct evhttp_request *, void *), void *arg)
 {
@@ -2676,6 +2685,7 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 	req->evcon = evcon;	/* the request ends up owning the connection */
 	req->flags |= EVHTTP_REQ_OWN_CONNECTION;
 
+    // 这里已经插入evcon->requests
 	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
 	req->kind = EVHTTP_REQUEST;
