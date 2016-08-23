@@ -790,6 +790,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 		 * incoming connection - we need to leave the request on the
 		 * connection so that we can reply to it.
 		 */
+		 //服务器端接收到req，需要响应，因此状态变为写
 		evcon->state = EVCON_WRITING;
 	}
 
@@ -797,6 +798,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 	(*req->cb)(req, req->cb_arg);
 
 	/* if this was an outgoing request, we own and it's done. so free it */
+    // 发出去的请求，也就是客户端请求
 	if (con_outgoing) {
 		evhttp_request_free(req);
 	}
@@ -939,7 +941,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
  * the data that we wanted to read.
  * Execute callback when done.
  */
-// 从socket读取数据放到input_buffer
+// 从socket读取数据放到input_buffer，然后解析
 void
 evhttp_read(int fd, short what, void *arg)
 {
@@ -2248,6 +2250,7 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 	free(line);
 }
 
+// 根据req的uri得到与之关联的处理对调函数
 static struct evhttp_cb *
 evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 {
@@ -2255,6 +2258,7 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 	size_t offset = 0;
 
 	/* Test for different URLs */
+    // 请求的uri可能有参数
 	char *p = strchr(req->uri, '?');
 	if (p != NULL)
 		offset = (size_t)(p - req->uri);
@@ -2265,7 +2269,7 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 			res = strcmp(cb->what, req->uri) == 0;
 		} else {
 			res = ((strncmp(cb->what, req->uri, offset) == 0) &&
-					(cb->what[offset] == '\0'));
+					(cb->what[offset] == '\0')); // 注册时候uri不要有'/'后缀
 		}
 
 		if (res)
@@ -2275,6 +2279,7 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 	return (NULL);
 }
 
+// 服务端注册的与req关联的回调，当服务端收到请求，根据uri找到callback处理
 static void
 evhttp_handle_request(struct evhttp_request *req, void *arg)
 {
@@ -2293,10 +2298,12 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 		return;
 	}
 
+    // 找到与uri关联的回调，通知调用
 	if ((cb = evhttp_dispatch_callback(&http->callbacks, req)) != NULL) {
 		(*cb->cb)(req, cb->cbarg);
 		return;
 	}
+    // 如果没有则由evhttp进行处理
 
 	/* Generic call back */
 	if (http->gencb) {
@@ -2327,6 +2334,7 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	}
 }
 
+// socket连接回调
 static void
 accept_socket(int fd, short what, void *arg)
 {
@@ -2637,7 +2645,7 @@ evhttp_request_uri(struct evhttp_request *req) {
  * Takes a file descriptor to read a request from.
  * The callback is executed once the whole request has been read.
  */
-
+// 客户连接，通过fd创建一个connection
 static struct evhttp_connection*
 evhttp_get_request_connection(
 	struct evhttp* http,
@@ -2674,12 +2682,13 @@ evhttp_get_request_connection(
 	return (evcon);
 }
 
+// 服务端给event loop发送一个读请求，等待新的req
 static int
 evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 {
 	struct evhttp *http = evcon->http_server;
 	struct evhttp_request *req;
-	if ((req = evhttp_request_new(evhttp_handle_request, http)) == NULL)
+	if ((req = evhttp_request_new(evhttp_handle_request/* 服务端自己注册一个处理回调 */, http)) == NULL)
 		return (-1);
 
 	req->evcon = evcon;	/* the request ends up owning the connection */

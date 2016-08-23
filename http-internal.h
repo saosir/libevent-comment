@@ -103,9 +103,9 @@ struct evhttp_connection {
 
 struct evhttp_cb {
 	TAILQ_ENTRY(evhttp_cb) next;
-
+    // 注册的uri
 	char *what;
-
+    // 与之关联的回调
 	void (*cb)(struct evhttp_request *req, void *);
 	void *cbarg;
 };
@@ -124,10 +124,10 @@ struct evhttp {
 	TAILQ_HEAD(boundq, evhttp_bound_socket) sockets;
 
 	TAILQ_HEAD(httpcbq, evhttp_cb) callbacks;
-        struct evconq connections;
-
-        int timeout;
-
+    struct evconq connections;
+    // 默认超时值
+    int timeout;
+    // 默认的uri处理回调，找不到与req关联的回调函数，gencb会被调用，可以用于设置404 Not Found之类的
 	void (*gencb)(struct evhttp_request *req, void *);
 	void *gencbarg;
 
