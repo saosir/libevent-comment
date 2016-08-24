@@ -229,6 +229,7 @@ struct nameserver {
 	struct event timeout_event;  /* used to keep the timeout for */
 				     /* when we next probe this server. */
 				     /* Valid if state == 0 */
+    // 1服务器活动，0服务器down
 	char state;  /* zero if we think that this server is down */
 	char choked;  /* true if we have an EAGAIN from this server's socket */
 	char write_waiting;  /* true if we are waiting for EV_WRITE events */
@@ -760,15 +761,15 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 		request_finished(req, &req_head);
 	}
 }
+#define GET32(x) do { if (j + 4 > length) goto err; memcpy(&_t32, packet + j, 4); j += 4; x = ntohl(_t32); } while(0)
+#define GET16(x) do { if (j + 2 > length) goto err; memcpy(&_t, packet + j, 2); j += 2; x = ntohs(_t); } while(0)
+#define GET8(x) do { if (j >= length) goto err; x = packet[j++]; } while(0)
 
 static int
 name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 	int name_end = -1;
 	int j = *idx;
 	int ptr_count = 0;
-#define GET32(x) do { if (j + 4 > length) goto err; memcpy(&_t32, packet + j, 4); j += 4; x = ntohl(_t32); } while(0)
-#define GET16(x) do { if (j + 2 > length) goto err; memcpy(&_t, packet + j, 2); j += 2; x = ntohs(_t); } while(0)
-#define GET8(x) do { if (j >= length) goto err; x = packet[j++]; } while(0)
 
 	char *cp = name_out;
 	const char *const end = name_out + name_out_len;
@@ -962,6 +963,7 @@ reply_parse(u8 *packet, int length) {
 /* Parse a raw request (packet,length) sent to a nameserver port (port) from */
 /* a DNS client (addr,addrlen), and if it's well-formed, call the corresponding */
 /* callback. */
+// 解析成功数据包之后回调port->user_callback进行通知
 static int
 request_parse(u8 *packet, int length, struct evdns_server_port *port, struct sockaddr *addr, socklen_t addrlen)
 {
@@ -974,6 +976,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 	struct server_request *server_req = NULL;
 
 	/* Get the header fields */
+    // 解析数据包，确认packet是否足够长
 	GET16(trans_id);
 	GET16(flags);
 	GET16(questions);
@@ -983,7 +986,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 
 	if (flags & 0x8000) return -1; /* Must not be an answer. */
 	flags &= 0x0110; /* Only RD and CD get preserved. */
-
+    // NOTE:怎么没看到server_req的释放?会调用TO_SERVER_REQUEST将server_req->base偏移到头指针获得
 	server_req = malloc(sizeof(struct server_request));
 	if (server_req == NULL) return -1;
 	memset(server_req, 0, sizeof(struct server_request));
@@ -1206,7 +1209,9 @@ server_port_read(struct evdns_server_port *s) {
 					 (struct sockaddr*) &addr, &addrlen);
 		if (r < 0) {
 			int err = last_error(s->socket);
-			if (error_is_eagain(err)) return;
+            // 没有数据
+			if (error_is_eagain(err))
+                return;
 			log(EVDNS_LOG_WARN, "Error %s (%d) while reading request.",
 				strerror(err), err);
 			return;
@@ -1465,7 +1470,7 @@ evdns_request_data_build(const char *const name, const int name_len,
 	if (j < 0) {
 		return (int)j;
 	}
-	
+
 	APPEND16(type);
 	APPEND16(class);
 
@@ -1475,6 +1480,7 @@ evdns_request_data_build(const char *const name, const int name_len,
 }
 
 /* exported function */
+// 添加一个响应dns请求服务器
 struct evdns_server_port *
 evdns_add_server_port(int socket, int is_tcp, evdns_request_callback_fn_type cb, void *user_data)
 {
@@ -1483,6 +1489,7 @@ evdns_add_server_port(int socket, int is_tcp, evdns_request_callback_fn_type cb,
 		return NULL;
 	memset(port, 0, sizeof(struct evdns_server_port));
 
+    // 不支持tcp
 	assert(!is_tcp); /* TCP sockets not yet implemented */
 	port->socket = socket;
 	port->refcnt = 1;
@@ -2117,6 +2124,7 @@ _evdns_nameserver_add_impl(unsigned long int address, int port) {
 	const struct nameserver *server = server_head, *const started_at = server_head;
 	struct nameserver *ns;
 	int err = 0;
+    // 确认未添加到服务器列表
 	if (server) {
 		do {
 			if (server->address == address) return 3;
@@ -2130,12 +2138,12 @@ _evdns_nameserver_add_impl(unsigned long int address, int port) {
 	memset(ns, 0, sizeof(struct nameserver));
 
 	evtimer_set(&ns->timeout_event, nameserver_prod_callback, ns);
-
+    // UDP端口
 	ns->socket = socket(PF_INET, SOCK_DGRAM, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
 	FD_CLOSEONEXEC(ns->socket);
 	evutil_make_socket_nonblocking(ns->socket);
-
+    // nameserver 特有信息，地址端口
 	ns->address = address;
 	ns->port = htons(port);
 	ns->state = 1;
@@ -2149,14 +2157,18 @@ _evdns_nameserver_add_impl(unsigned long int address, int port) {
 
 	/* insert this nameserver into the list of them */
 	if (!server_head) {
+        // 开始链表为空
 		ns->next = ns->prev = ns;
 		server_head = ns;
 	} else {
+	    // 插在第二个节点?
 		ns->next = server_head->next;
 		ns->prev = server_head;
+        // 是不是少了 server->next->prev = ns还是故意让其他链表的所有
 		server_head->next = ns;
+
 		if (server_head->prev == server_head) {
-			server_head->prev = ns;
+			server_head->prev = ns;// 指向最后一个
 		}
 	}
 
@@ -2173,6 +2185,7 @@ out1:
 }
 
 /* exported function */
+// 默认端口为53
 int
 evdns_nameserver_add(unsigned long int address) {
 	return _evdns_nameserver_add_impl(address, 53);
@@ -2185,8 +2198,9 @@ evdns_nameserver_ip_add(const char *ip_as_string) {
 	int port;
 	char buf[20];
 	const char *cp;
+    // IP:端口
 	cp = strchr(ip_as_string, ':');
-	if (! cp) {
+	if (!cp) {
 		cp = ip_as_string;
 		port = 53;
 	} else {
@@ -2201,6 +2215,7 @@ evdns_nameserver_ip_add(const char *ip_as_string) {
 		buf[cp-ip_as_string] = '\0';
 		cp = buf;
 	}
+    // cp 指向ip
 	if (!inet_aton(cp, &ina)) {
 		return 4;
 	}
@@ -2436,13 +2451,16 @@ search_postfix_add(const char *domain) {
 	while (domain[0] == '.') domain++;
 	domain_len = strlen(domain);
 
+    // 第一次初始化
 	if (!global_search_state) global_search_state = search_state_new();
         if (!global_search_state) return;
 	global_search_state->num_domains++;
 
-	sdomain = (struct search_domain *) malloc(sizeof(struct search_domain) + domain_len);
-        if (!sdomain) return;
+	sdomain = (struct search_domain *) malloc(sizeof(struct search_domain) + domain_len/* 尾巴存储domail */);
+    if (!sdomain) return;
+    // 拷贝domain到尾巴
 	memcpy( ((u8 *) sdomain) + sizeof(struct search_domain), domain, domain_len);
+    // 头插法
 	sdomain->next = global_search_state->head;
 	sdomain->len = domain_len;
 
@@ -2693,6 +2711,7 @@ evdns_set_option(const char *option, const char *val, int flags)
 	return 0;
 }
 
+// linux /etc/resolv.conf 文件单行解析
 static void
 resolv_conf_parse_line(char *const start, int flags) {
 	char *strtok_state;
@@ -2701,8 +2720,9 @@ resolv_conf_parse_line(char *const start, int flags) {
 
 	char *const first_token = strtok_r(start, delims, &strtok_state);
 	if (!first_token) return;
-
+    // search 和 domain不能共存，使用最后一个
 	if (!strcmp(first_token, "nameserver") && (flags & DNS_OPTION_NAMESERVERS)) {
+        // nameserver 114.114.114.114
 		const char *const nameserver = NEXT_TOKEN;
 		struct in_addr ina;
 
@@ -2711,12 +2731,14 @@ resolv_conf_parse_line(char *const start, int flags) {
 			evdns_nameserver_add(ina.s_addr);
 		}
 	} else if (!strcmp(first_token, "domain") && (flags & DNS_OPTION_SEARCH)) {
+	    // domain xxx.xxx.xxx.xx
 		const char *const domain = NEXT_TOKEN;
 		if (domain) {
 			search_postfix_clear();
 			search_postfix_add(domain);
 		}
 	} else if (!strcmp(first_token, "search") && (flags & DNS_OPTION_SEARCH)) {
+	    // search x.x.x.x   y.y.y.y     z.z.z.z
 		const char *domain;
 		search_postfix_clear();
 
@@ -2770,6 +2792,7 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
 	if (!resolv) { err = 4; goto out1; }
 
 	n = 0;
+    // 读取整个文件
 	while ((r = read(fd, resolv+n, (size_t)st.st_size-n)) > 0) {
 		n += r;
 		if (n == st.st_size)
@@ -2778,7 +2801,7 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
  	}
 	if (r < 0) { err = 5; goto out2; }
 	resolv[n] = 0;	 /* we malloced an extra byte; this should be fine. */
-
+    // 分行
 	start = (char *) resolv;
 	for (;;) {
 		char *const newline = strchr(start, '\n');
@@ -2836,6 +2859,7 @@ typedef DWORD(WINAPI *GetNetworkParams_fn_t)(FIXED_INFO *, DWORD*);
 
 /* Use the windows GetNetworkParams interface in iphlpapi.dll to */
 /* figure out what our nameservers are. */
+// windwos 获取dns服务器
 static int
 load_nameservers_with_getnetworkparams(void)
 {
@@ -2933,6 +2957,7 @@ config_nameserver_from_reg_key(HKEY key, const char *subkey)
 	return status;
 }
 
+// windows下从注册表获取丹尼斯服务器
 #define SERVICES_KEY "System\\CurrentControlSet\\Services\\"
 #define WIN_NS_9X_KEY  SERVICES_KEY "VxD\\MSTCP"
 #define WIN_NS_NT_KEY  SERVICES_KEY "Tcpip\\Parameters"

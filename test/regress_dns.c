@@ -333,9 +333,11 @@ dns_server(void)
 		perror("bind");
 		exit (1);
 	}
+    // 作为服务器响应请求
 	port = evdns_add_server_port(sock, 0, dns_server_request_cb, NULL);
 
 	/* Send two queries. */
+    // 客户端查询
 	evdns_resolve_ipv4("zz.example.com", DNS_QUERY_NO_SEARCH,
 					   dns_server_gethostbyname_cb, NULL);
 	evdns_resolve_ipv6("zz.example.com", DNS_QUERY_NO_SEARCH,
