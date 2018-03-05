@@ -51,187 +51,188 @@
 #include "event.h"
 
 
-// bufferevent ¶ÁĞ´»º³åÇø£¬µ±¶ÁÍê³É»òÕßĞ´Íê³ÉµÄÊ±ºò£¬¾Í»áÍ¨ÖªÓÃ»§
-// ÕâÑù¾ÍÏàµ±ÓÚÒ»¸öÒì²½µÄ½Ó¿Ú£¬ËäÈ»±¾ÖÊÉÏÊÇÍ¬²½£¬µ«ÊÇ¼«´óµÄ·½±ã
-// ÉÏ²ã´úÂëµÄ±àĞ´ÓëÊ¹ÓÃ£¬buffereventĞèÒªÓÃ»§Ìá¹©readcb/writecb/errorcb
-// Èı¸ö»Øµ÷½Ó¿ÚÓÃÓÚÍ¨Öª£¬Í¬Ê±»¹Ìá¹©ÁËÒ»ÖÖ¸ßµÍË®Î»µÄ¸ÅÄî:
-// 1. ¶ÁµÄ¸ßµÍË®Î»±íÊ¾µ±»º³åÇøÊı¾İ¸ßÓÚ¸ßË®Î»¾Í²»ÔÚ¶Á£¬µÍÓÚµÍË®Î»²»ÔÙÍ¨ÖªÓÃ»§¶Á³É¹¦£»
-// 2. Ğ´µÄ¸ßµÍË®Î»±íÊ¾µ±»º³åÇøÊı¾İµÍÓÚµÍË®Î»Ö®ºó£¬Ğ´³É¹¦ÊÂ¼ş²Å»áÍ¨ÖªÓÃ»§£¬ÕâÑùÒÔ±ãÓÃ»§
-// ¼ÌĞøÍù»º³åÇøÌîĞ´Êı¾İ£¬¸ßË®Î»Ã»ÓĞÓÃ£¬ÒòÎªÖ»Òª»º³åÇøÓĞÊı¾İ¾Í»á±»Ğ´
+// bufferevent è¯»å†™ç¼“å†²åŒºï¼Œå½“è¯»å®Œæˆæˆ–è€…å†™å®Œæˆçš„æ—¶å€™ï¼Œå°±ä¼šé€šçŸ¥ç”¨æˆ·
+// è¿™æ ·å°±ç›¸å½“äºä¸€ä¸ªå¼‚æ­¥çš„æ¥å£ï¼Œè™½ç„¶æœ¬è´¨ä¸Šæ˜¯åŒæ­¥ï¼Œä½†æ˜¯æå¤§çš„æ–¹ä¾¿
+// ä¸Šå±‚ä»£ç çš„ç¼–å†™ä¸ä½¿ç”¨ï¼Œbuffereventéœ€è¦ç”¨æˆ·æä¾›readcb/writecb/errorcb
+// ä¸‰ä¸ªå›è°ƒæ¥å£ç”¨äºé€šçŸ¥ï¼ŒåŒæ—¶è¿˜æä¾›äº†ä¸€ç§é«˜ä½æ°´ä½çš„æ¦‚å¿µ:
+// 1. è¯»çš„é«˜ä½æ°´ä½è¡¨ç¤ºå½“ç¼“å†²åŒºæ•°æ®é«˜äºé«˜æ°´ä½å°±ä¸åœ¨è¯»ï¼Œä½äºä½æ°´ä½ä¸å†é€šçŸ¥ç”¨æˆ·è¯»æˆåŠŸï¼›
+// 2. å†™çš„é«˜ä½æ°´ä½è¡¨ç¤ºå½“ç¼“å†²åŒºæ•°æ®ä½äºä½æ°´ä½ä¹‹åï¼Œå†™æˆåŠŸäº‹ä»¶æ‰ä¼šé€šçŸ¥ç”¨æˆ·ï¼Œè¿™æ ·ä»¥ä¾¿ç”¨æˆ·
+// ç»§ç»­å¾€ç¼“å†²åŒºå¡«å†™æ•°æ®ï¼Œé«˜æ°´ä½æ²¡æœ‰ç”¨ï¼Œå› ä¸ºåªè¦ç¼“å†²åŒºæœ‰æ•°æ®å°±ä¼šè¢«å†™
 
 /* prototypes */
 
-void bufferevent_read_pressure_cb(struct evbuffer *, size_t, size_t, void *);
+void bufferevent_read_pressure_cb(struct evbuffer*, size_t, size_t, void*);
 
 static int
-bufferevent_add(struct event *ev, int timeout)
+bufferevent_add(struct event* ev, int timeout)
 {
-	struct timeval tv, *ptv = NULL;
+    struct timeval tv, *ptv = NULL;
 
-	if (timeout) {
-		evutil_timerclear(&tv);
-		tv.tv_sec = timeout;
-		ptv = &tv;
-	}
+    if (timeout) {
+        evutil_timerclear(&tv);
+        tv.tv_sec = timeout;
+        ptv = &tv;
+    }
 
-	return (event_add(ev, ptv));
+    return (event_add(ev, ptv));
 }
 
 /*
  * This callback is executed when the size of the input buffer changes.
  * We use it to apply back pressure on the reading side.
- * evbuffer ´óĞ¡¸Ä±äµÄÊ±ºò»á±»µ÷ÓÃ
+ * evbuffer å¤§å°æ”¹å˜çš„æ—¶å€™ä¼šè¢«è°ƒç”¨
  */
 
 void
-bufferevent_read_pressure_cb(struct evbuffer *buf, size_t old, size_t now,
-    void *arg) {
-	struct bufferevent *bufev = arg;
-	/*
-	 * If we are below the watermark then reschedule reading if it's
-	 * still enabled.
-	 */
-	if (bufev->wm_read.high == 0 || now < bufev->wm_read.high) {
-		evbuffer_setcb(buf, NULL, NULL);
+bufferevent_read_pressure_cb(struct evbuffer* buf, size_t old, size_t now,
+                             void* arg)
+{
+    struct bufferevent* bufev = arg;
+    /*
+     * If we are below the watermark then reschedule reading if it's
+     * still enabled.
+     */
+    if (bufev->wm_read.high == 0 || now < bufev->wm_read.high) {
+        evbuffer_setcb(buf, NULL, NULL);
 
-		if (bufev->enabled & EV_READ)
-			bufferevent_add(&bufev->ev_read, bufev->timeout_read);
-	}
+        if (bufev->enabled & EV_READ)
+            bufferevent_add(&bufev->ev_read, bufev->timeout_read);
+    }
 }
 
 static void
-bufferevent_readcb(int fd, short event, void *arg)
+bufferevent_readcb(int fd, short event, void* arg)
 {
-	struct bufferevent *bufev = arg;
-	int res = 0;
-	short what = EVBUFFER_READ;
-	size_t len;
-	int howmuch = -1;
+    struct bufferevent* bufev = arg;
+    int res = 0;
+    short what = EVBUFFER_READ;
+    size_t len;
+    int howmuch = -1;
 
-	if (event == EV_TIMEOUT) {
-		what |= EVBUFFER_TIMEOUT;
-		goto error;
-	}
+    if (event == EV_TIMEOUT) {
+        what |= EVBUFFER_TIMEOUT;
+        goto error;
+    }
 
-	/*
-	 * If we have a high watermark configured then we don't want to
-	 * read more data than would make us reach the watermark.
-	 */
-	if (bufev->wm_read.high != 0) {
-		howmuch = bufev->wm_read.high - EVBUFFER_LENGTH(bufev->input);
-		/* we might have lowered the watermark, stop reading */
-        // »º³åÇøÊı¾İÌ«¶à£¬¸ßÓÚ¸ßË®Î»£¬Í£Ö¹¶Á,²»ÒªÔÚ¹àË®ÁË
-		if (howmuch <= 0) {
-			struct evbuffer *buf = bufev->input;
-			event_del(&bufev->ev_read);
-			evbuffer_setcb(buf,
-			    bufferevent_read_pressure_cb, bufev);
-			return;
-		}
-	}
-    // howmuch Îª-1»òÕß¾àÀë¸ßË®Î»µÄÖµ
-	res = evbuffer_read(bufev->input, fd, howmuch);
-	if (res == -1) {
-		if (errno == EAGAIN || errno == EINTR)
-			goto reschedule;
-		/* error case */
-		what |= EVBUFFER_ERROR;
-	} else if (res == 0) {
-		/* eof case */
-		what |= EVBUFFER_EOF;
-	}
+    /*
+     * If we have a high watermark configured then we don't want to
+     * read more data than would make us reach the watermark.
+     */
+    if (bufev->wm_read.high != 0) {
+        howmuch = bufev->wm_read.high - EVBUFFER_LENGTH(bufev->input);
+        /* we might have lowered the watermark, stop reading */
+        // ç¼“å†²åŒºæ•°æ®å¤ªå¤šï¼Œé«˜äºé«˜æ°´ä½ï¼Œåœæ­¢è¯»,ä¸è¦åœ¨çŒæ°´äº†
+        if (howmuch <= 0) {
+            struct evbuffer* buf = bufev->input;
+            event_del(&bufev->ev_read);
+            evbuffer_setcb(buf,
+                           bufferevent_read_pressure_cb, bufev);
+            return;
+        }
+    }
+    // howmuch ä¸º-1æˆ–è€…è·ç¦»é«˜æ°´ä½çš„å€¼
+    res = evbuffer_read(bufev->input, fd, howmuch);
+    if (res == -1) {
+        if (errno == EAGAIN || errno == EINTR)
+            goto reschedule;
+        /* error case */
+        what |= EVBUFFER_ERROR;
+    } else if (res == 0) {
+        /* eof case */
+        what |= EVBUFFER_EOF;
+    }
 
-	if (res <= 0)
-		goto error;
+    if (res <= 0)
+        goto error;
 
-	bufferevent_add(&bufev->ev_read, bufev->timeout_read);
+    bufferevent_add(&bufev->ev_read, bufev->timeout_read);
 
-	/* See if this callbacks meets the water marks */
-	len = EVBUFFER_LENGTH(bufev->input);
-    // Ğ¡ÓÚµÍË®Î»£¬²»×ö´¦Àí£¬Ö»ÓÃ¸ßÓÚµÍË®Î»²Å»áÍ¨ÖªÓÃ»§¶Á³É¹¦
-	if (bufev->wm_read.low != 0 && len < bufev->wm_read.low)
-		return;
-    // ´óÓÚ¸ßË®Î»Õß²»ÔÚ´ÓsocketÖĞ¶ÁÈ¡,Ö±µ½Ë®Î»½µÏÂ
-	if (bufev->wm_read.high != 0 && len >= bufev->wm_read.high) {
-		struct evbuffer *buf = bufev->input;
-		event_del(&bufev->ev_read);
+    /* See if this callbacks meets the water marks */
+    len = EVBUFFER_LENGTH(bufev->input);
+    // å°äºä½æ°´ä½ï¼Œä¸åšå¤„ç†ï¼Œåªç”¨é«˜äºä½æ°´ä½æ‰ä¼šé€šçŸ¥ç”¨æˆ·è¯»æˆåŠŸ
+    if (bufev->wm_read.low != 0 && len < bufev->wm_read.low)
+        return;
+    // å¤§äºé«˜æ°´ä½è€…ä¸åœ¨ä»socketä¸­è¯»å–,ç›´åˆ°æ°´ä½é™ä¸‹
+    if (bufev->wm_read.high != 0 && len >= bufev->wm_read.high) {
+        struct evbuffer* buf = bufev->input;
+        event_del(&bufev->ev_read);
 
-		/* Now schedule a callback for us when the buffer changes */
-		evbuffer_setcb(buf, bufferevent_read_pressure_cb, bufev);
-	}
+        /* Now schedule a callback for us when the buffer changes */
+        evbuffer_setcb(buf, bufferevent_read_pressure_cb, bufev);
+    }
 
-	/* Invoke the user callback - must always be called last */
-	if (bufev->readcb != NULL)
-		(*bufev->readcb)(bufev, bufev->cbarg);
-	return;
+    /* Invoke the user callback - must always be called last */
+    if (bufev->readcb != NULL)
+        (*bufev->readcb)(bufev, bufev->cbarg);
+    return;
 
- reschedule:
-	bufferevent_add(&bufev->ev_read, bufev->timeout_read);
-	return;
+reschedule:
+    bufferevent_add(&bufev->ev_read, bufev->timeout_read);
+    return;
 
- error:
-	(*bufev->errorcb)(bufev, what, bufev->cbarg);
+error:
+    (*bufev->errorcb)(bufev, what, bufev->cbarg);
 }
 
 static void
-bufferevent_writecb(int fd, short event, void *arg)
+bufferevent_writecb(int fd, short event, void* arg)
 {
-	struct bufferevent *bufev = arg;
-	int res = 0;
-	short what = EVBUFFER_WRITE;
+    struct bufferevent* bufev = arg;
+    int res = 0;
+    short what = EVBUFFER_WRITE;
 
-	if (event == EV_TIMEOUT) {
-		what |= EVBUFFER_TIMEOUT;
-		goto error;
-	}
-    // ÓĞÊı¾İ¾ÍĞ´
-	if (EVBUFFER_LENGTH(bufev->output)) {
-	    res = evbuffer_write(bufev->output, fd);
-	    if (res == -1) {
+    if (event == EV_TIMEOUT) {
+        what |= EVBUFFER_TIMEOUT;
+        goto error;
+    }
+    // æœ‰æ•°æ®å°±å†™
+    if (EVBUFFER_LENGTH(bufev->output)) {
+        res = evbuffer_write(bufev->output, fd);
+        if (res == -1) {
 #ifndef WIN32
-/*todo. evbuffer uses WriteFile when WIN32 is set. WIN32 system calls do not
- *set errno. thus this error checking is not portable*/
-		    if (errno == EAGAIN ||
-			errno == EINTR ||
-			errno == EINPROGRESS)
-			    goto reschedule;
-		    /* error case */
-		    what |= EVBUFFER_ERROR;
+            /*todo. evbuffer uses WriteFile when WIN32 is set. WIN32 system calls do not
+             *set errno. thus this error checking is not portable*/
+            if (errno == EAGAIN ||
+                errno == EINTR ||
+                errno == EINPROGRESS)
+                goto reschedule;
+            /* error case */
+            what |= EVBUFFER_ERROR;
 
 #else
-				goto reschedule;
+            goto reschedule;
 #endif
 
-	    } else if (res == 0) {
-		    /* eof case */
-		    what |= EVBUFFER_EOF;
-	    }
-	    if (res <= 0)
-		    goto error;
-	}
+        } else if (res == 0) {
+            /* eof case */
+            what |= EVBUFFER_EOF;
+        }
+        if (res <= 0)
+            goto error;
+    }
 
-    // »¹ÓĞÊı¾İĞèÒªĞ´
-	if (EVBUFFER_LENGTH(bufev->output) != 0)
-		bufferevent_add(&bufev->ev_write, bufev->timeout_write);
+    // è¿˜æœ‰æ•°æ®éœ€è¦å†™
+    if (EVBUFFER_LENGTH(bufev->output) != 0)
+        bufferevent_add(&bufev->ev_write, bufev->timeout_write);
 
-	/*
-	 * Invoke the user callback if our buffer is drained or below the
-	 * low watermark.
-	 */
-	 // Êä³ö»º³åÇøÒÑ¾­½µµ½µ×Ë®Î»£¬Í¨ÖªÓÃ»§³äË®
-	if (bufev->writecb != NULL &&
-	    EVBUFFER_LENGTH(bufev->output) <= bufev->wm_write.low)
-		(*bufev->writecb)(bufev, bufev->cbarg);
+    /*
+     * Invoke the user callback if our buffer is drained or below the
+     * low watermark.
+     */
+    // è¾“å‡ºç¼“å†²åŒºå·²ç»é™åˆ°åº•æ°´ä½ï¼Œé€šçŸ¥ç”¨æˆ·å……æ°´
+    if (bufev->writecb != NULL &&
+        EVBUFFER_LENGTH(bufev->output) <= bufev->wm_write.low)
+        (*bufev->writecb)(bufev, bufev->cbarg);
 
-	return;
+    return;
 
- reschedule:
-	if (EVBUFFER_LENGTH(bufev->output) != 0)
-		bufferevent_add(&bufev->ev_write, bufev->timeout_write);
-	return;
+reschedule:
+    if (EVBUFFER_LENGTH(bufev->output) != 0)
+        bufferevent_add(&bufev->ev_write, bufev->timeout_write);
+    return;
 
- error:
-	(*bufev->errorcb)(bufev, what, bufev->cbarg);
+error:
+    (*bufev->errorcb)(bufev, what, bufev->cbarg);
 }
 
 /*
@@ -245,91 +246,91 @@ bufferevent_writecb(int fd, short event, void *arg)
  * allowed to be NULL and have to be provided always.
  */
 
-struct bufferevent *
+struct bufferevent*
 bufferevent_new(int fd, evbuffercb readcb, evbuffercb writecb,
-    everrorcb errorcb, void *cbarg)
+                everrorcb errorcb, void* cbarg)
 {
-	struct bufferevent *bufev;
+    struct bufferevent* bufev;
 
-	if ((bufev = calloc(1, sizeof(struct bufferevent))) == NULL)
-		return (NULL);
+    if ((bufev = calloc(1, sizeof(struct bufferevent))) == NULL)
+        return (NULL);
 
-	if ((bufev->input = evbuffer_new()) == NULL) {
-		free(bufev);
-		return (NULL);
-	}
+    if ((bufev->input = evbuffer_new()) == NULL) {
+        free(bufev);
+        return (NULL);
+    }
 
-	if ((bufev->output = evbuffer_new()) == NULL) {
-		evbuffer_free(bufev->input);
-		free(bufev);
-		return (NULL);
-	}
+    if ((bufev->output = evbuffer_new()) == NULL) {
+        evbuffer_free(bufev->input);
+        free(bufev);
+        return (NULL);
+    }
 
-	event_set(&bufev->ev_read, fd, EV_READ, bufferevent_readcb, bufev);
-	event_set(&bufev->ev_write, fd, EV_WRITE, bufferevent_writecb, bufev);
+    event_set(&bufev->ev_read, fd, EV_READ, bufferevent_readcb, bufev);
+    event_set(&bufev->ev_write, fd, EV_WRITE, bufferevent_writecb, bufev);
 
-	bufferevent_setcb(bufev, readcb, writecb, errorcb, cbarg);
+    bufferevent_setcb(bufev, readcb, writecb, errorcb, cbarg);
 
-	/*
-	 * Set to EV_WRITE so that using bufferevent_write is going to
-	 * trigger a callback.  Reading needs to be explicitly enabled
-	 * because otherwise no data will be available.
-	 */
-	bufev->enabled = EV_WRITE;
+    /*
+     * Set to EV_WRITE so that using bufferevent_write is going to
+     * trigger a callback.  Reading needs to be explicitly enabled
+     * because otherwise no data will be available.
+     */
+    bufev->enabled = EV_WRITE;
 
-	return (bufev);
+    return (bufev);
 }
 
 void
-bufferevent_setcb(struct bufferevent *bufev,
-    evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg)
+bufferevent_setcb(struct bufferevent* bufev,
+                  evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void* cbarg)
 {
-	bufev->readcb = readcb;
-	bufev->writecb = writecb;
-	bufev->errorcb = errorcb;
+    bufev->readcb = readcb;
+    bufev->writecb = writecb;
+    bufev->errorcb = errorcb;
 
-	bufev->cbarg = cbarg;
+    bufev->cbarg = cbarg;
 }
 
 void
-bufferevent_setfd(struct bufferevent *bufev, int fd)
+bufferevent_setfd(struct bufferevent* bufev, int fd)
 {
-	event_del(&bufev->ev_read);
-	event_del(&bufev->ev_write);
+    event_del(&bufev->ev_read);
+    event_del(&bufev->ev_write);
 
-	event_set(&bufev->ev_read, fd, EV_READ, bufferevent_readcb, bufev);
-	event_set(&bufev->ev_write, fd, EV_WRITE, bufferevent_writecb, bufev);
-	if (bufev->ev_base != NULL) {
-		event_base_set(bufev->ev_base, &bufev->ev_read);
-		event_base_set(bufev->ev_base, &bufev->ev_write);
-	}
+    event_set(&bufev->ev_read, fd, EV_READ, bufferevent_readcb, bufev);
+    event_set(&bufev->ev_write, fd, EV_WRITE, bufferevent_writecb, bufev);
+    if (bufev->ev_base != NULL) {
+        event_base_set(bufev->ev_base, &bufev->ev_read);
+        event_base_set(bufev->ev_base, &bufev->ev_write);
+    }
 
-	/* might have to manually trigger event registration */
+    /* might have to manually trigger event registration */
 }
 
 int
-bufferevent_priority_set(struct bufferevent *bufev, int priority)
+bufferevent_priority_set(struct bufferevent* bufev, int priority)
 {
-	if (event_priority_set(&bufev->ev_read, priority) == -1)
-		return (-1);
-	if (event_priority_set(&bufev->ev_write, priority) == -1)
-		return (-1);
+    if (event_priority_set(&bufev->ev_read, priority) == -1)
+        return (-1);
+    if (event_priority_set(&bufev->ev_write, priority) == -1)
+        return (-1);
 
-	return (0);
+    return (0);
 }
 
 /* Closing the file descriptor is the responsibility of the caller */
 
 void
-bufferevent_free(struct bufferevent *bufev)
+bufferevent_free(struct bufferevent* bufev)
 {
-	event_del(&bufev->ev_read);
-	event_del(&bufev->ev_write);
+    event_del(&bufev->ev_read);
+    event_del(&bufev->ev_write);
 
-	evbuffer_free(bufev->input);
-	evbuffer_free(bufev->output);
+    evbuffer_free(bufev->input);
+    evbuffer_free(bufev->output);
 
-	free(bufev);
+    free(bufev);
 }
 
 /*
@@ -338,81 +339,81 @@ bufferevent_free(struct bufferevent *bufev)
  */
 
 int
-bufferevent_write(struct bufferevent *bufev, const void *data, size_t size)
+bufferevent_write(struct bufferevent* bufev, const void* data, size_t size)
 {
-	int res;
+    int res;
 
-	res = evbuffer_add(bufev->output, data, size);
+    res = evbuffer_add(bufev->output, data, size);
 
-	if (res == -1)
-		return (res);
+    if (res == -1)
+        return (res);
 
-	/* If everything is okay, we need to schedule a write */
-	if (size > 0 && (bufev->enabled & EV_WRITE))
-		bufferevent_add(&bufev->ev_write, bufev->timeout_write);
+    /* If everything is okay, we need to schedule a write */
+    if (size > 0 && (bufev->enabled & EV_WRITE))
+        bufferevent_add(&bufev->ev_write, bufev->timeout_write);
 
-	return (res);
+    return (res);
 }
 
 int
-bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf)
+bufferevent_write_buffer(struct bufferevent* bufev, struct evbuffer* buf)
 {
-	int res;
+    int res;
 
-	res = bufferevent_write(bufev, buf->buffer, buf->off);
-	if (res != -1)
-		evbuffer_drain(buf, buf->off);
+    res = bufferevent_write(bufev, buf->buffer, buf->off);
+    if (res != -1)
+        evbuffer_drain(buf, buf->off);
 
-	return (res);
+    return (res);
 }
 
 size_t
-bufferevent_read(struct bufferevent *bufev, void *data, size_t size)
+bufferevent_read(struct bufferevent* bufev, void* data, size_t size)
 {
-	struct evbuffer *buf = bufev->input;
+    struct evbuffer* buf = bufev->input;
 
-	if (buf->off < size)
-		size = buf->off;
+    if (buf->off < size)
+        size = buf->off;
 
-	/* Copy the available data to the user buffer */
-	memcpy(data, buf->buffer, size);
+    /* Copy the available data to the user buffer */
+    memcpy(data, buf->buffer, size);
 
-	if (size)
-		evbuffer_drain(buf, size);
+    if (size)
+        evbuffer_drain(buf, size);
 
-	return (size);
+    return (size);
 }
 
 int
-bufferevent_enable(struct bufferevent *bufev, short event)
+bufferevent_enable(struct bufferevent* bufev, short event)
 {
-	if (event & EV_READ) {
-		if (bufferevent_add(&bufev->ev_read, bufev->timeout_read) == -1)
-			return (-1);
-	}
-	if (event & EV_WRITE) {
-		if (bufferevent_add(&bufev->ev_write, bufev->timeout_write) == -1)
-			return (-1);
-	}
+    if (event & EV_READ) {
+        if (bufferevent_add(&bufev->ev_read, bufev->timeout_read) == -1)
+            return (-1);
+    }
+    if (event & EV_WRITE) {
+        if (bufferevent_add(&bufev->ev_write, bufev->timeout_write) == -1)
+            return (-1);
+    }
 
-	bufev->enabled |= event;
-	return (0);
+    bufev->enabled |= event;
+    return (0);
 }
 
 int
-bufferevent_disable(struct bufferevent *bufev, short event)
+bufferevent_disable(struct bufferevent* bufev, short event)
 {
-	if (event & EV_READ) {
-		if (event_del(&bufev->ev_read) == -1)
-			return (-1);
-	}
-	if (event & EV_WRITE) {
-		if (event_del(&bufev->ev_write) == -1)
-			return (-1);
-	}
+    if (event & EV_READ) {
+        if (event_del(&bufev->ev_read) == -1)
+            return (-1);
+    }
+    if (event & EV_WRITE) {
+        if (event_del(&bufev->ev_write) == -1)
+            return (-1);
+    }
 
-	bufev->enabled &= ~event;
-	return (0);
+    bufev->enabled &= ~event;
+    return (0);
 }
 
 /*
@@ -420,15 +421,16 @@ bufferevent_disable(struct bufferevent *bufev, short event)
  */
 
 void
-bufferevent_settimeout(struct bufferevent *bufev,
-    int timeout_read, int timeout_write) {
-	bufev->timeout_read = timeout_read;
-	bufev->timeout_write = timeout_write;
+bufferevent_settimeout(struct bufferevent* bufev,
+                       int timeout_read, int timeout_write)
+{
+    bufev->timeout_read = timeout_read;
+    bufev->timeout_write = timeout_write;
 
-	if (event_pending(&bufev->ev_read, EV_READ, NULL))
-		bufferevent_add(&bufev->ev_read, timeout_read);
-	if (event_pending(&bufev->ev_write, EV_WRITE, NULL))
-		bufferevent_add(&bufev->ev_write, timeout_write);
+    if (event_pending(&bufev->ev_read, EV_READ, NULL))
+        bufferevent_add(&bufev->ev_read, timeout_read);
+    if (event_pending(&bufev->ev_write, EV_WRITE, NULL))
+        bufferevent_add(&bufev->ev_write, timeout_write);
 }
 
 /*
@@ -436,35 +438,35 @@ bufferevent_settimeout(struct bufferevent *bufev,
  */
 
 void
-bufferevent_setwatermark(struct bufferevent *bufev, short events,
-    size_t lowmark, size_t highmark)
+bufferevent_setwatermark(struct bufferevent* bufev, short events,
+                         size_t lowmark, size_t highmark)
 {
-	if (events & EV_READ) {
-		bufev->wm_read.low = lowmark;
-		bufev->wm_read.high = highmark;
-	}
+    if (events & EV_READ) {
+        bufev->wm_read.low = lowmark;
+        bufev->wm_read.high = highmark;
+    }
 
-	if (events & EV_WRITE) {
-		bufev->wm_write.low = lowmark;
-		bufev->wm_write.high = highmark;
-	}
+    if (events & EV_WRITE) {
+        bufev->wm_write.low = lowmark;
+        bufev->wm_write.high = highmark;
+    }
 
-	/* If the watermarks changed then see if we should call read again */
-	bufferevent_read_pressure_cb(bufev->input,
-	    0, EVBUFFER_LENGTH(bufev->input), bufev);
+    /* If the watermarks changed then see if we should call read again */
+    bufferevent_read_pressure_cb(bufev->input,
+                                 0, EVBUFFER_LENGTH(bufev->input), bufev);
 }
 
 int
-bufferevent_base_set(struct event_base *base, struct bufferevent *bufev)
+bufferevent_base_set(struct event_base* base, struct bufferevent* bufev)
 {
-	int res;
+    int res;
 
-	bufev->ev_base = base;
+    bufev->ev_base = base;
 
-	res = event_base_set(base, &bufev->ev_read);
-	if (res == -1)
-		return (res);
+    res = event_base_set(base, &bufev->ev_read);
+    if (res == -1)
+        return (res);
 
-	res = event_base_set(base, &bufev->ev_write);
-	return (res);
+    res = event_base_set(base, &bufev->ev_write);
+    return (res);
 }

@@ -11,7 +11,7 @@ extern "C" {
 
 #ifndef HAVE_STRLCPY
 #include <string.h>
-size_t _event_strlcpy(char *dst, const char *src, size_t siz);
+size_t _event_strlcpy(char* dst, const char* src, size_t siz);
 #define strlcpy _event_strlcpy
 #endif
 

@@ -108,12 +108,12 @@ int evutil_make_socket_nonblocking(int sock);
 
 #ifdef WIN32
 #define EVUTIL_SOCKET_ERROR() WSAGetLastError()
-#define EVUTIL_SET_SOCKET_ERROR(errcode)		\
-	do { WSASetLastError(errcode); } while (0)
+#define EVUTIL_SET_SOCKET_ERROR(errcode)        \
+    do { WSASetLastError(errcode); } while (0)
 #else
 #define EVUTIL_SOCKET_ERROR() (errno)
-#define EVUTIL_SET_SOCKET_ERROR(errcode)		\
-		do { errno = (errcode); } while (0)
+#define EVUTIL_SET_SOCKET_ERROR(errcode)        \
+        do { errno = (errcode); } while (0)
 #endif
 
 /*
@@ -123,61 +123,61 @@ int evutil_make_socket_nonblocking(int sock);
 #define evutil_timeradd(tvp, uvp, vvp) timeradd((tvp), (uvp), (vvp))
 #define evutil_timersub(tvp, uvp, vvp) timersub((tvp), (uvp), (vvp))
 #else
-#define evutil_timeradd(tvp, uvp, vvp)							\
-	do {														\
-		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;			\
-		(vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec;       \
-		if ((vvp)->tv_usec >= 1000000) {						\
-			(vvp)->tv_sec++;									\
-			(vvp)->tv_usec -= 1000000;							\
-		}														\
-	} while (0)
-#define	evutil_timersub(tvp, uvp, vvp)						\
-	do {													\
-		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
-		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
-		if ((vvp)->tv_usec < 0) {							\
-			(vvp)->tv_sec--;								\
-			(vvp)->tv_usec += 1000000;						\
-		}													\
-	} while (0)
+#define evutil_timeradd(tvp, uvp, vvp)                          \
+    do {                                                        \
+        (vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;          \
+        (vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec;       \
+        if ((vvp)->tv_usec >= 1000000) {                        \
+            (vvp)->tv_sec++;                                    \
+            (vvp)->tv_usec -= 1000000;                          \
+        }                                                       \
+    } while (0)
+#define evutil_timersub(tvp, uvp, vvp)                      \
+    do {                                                    \
+        (vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;      \
+        (vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;   \
+        if ((vvp)->tv_usec < 0) {                           \
+            (vvp)->tv_sec--;                                \
+            (vvp)->tv_usec += 1000000;                      \
+        }                                                   \
+    } while (0)
 #endif /* !_EVENT_HAVE_HAVE_TIMERADD */
 
 #ifdef _EVENT_HAVE_TIMERCLEAR
 #define evutil_timerclear(tvp) timerclear(tvp)
 #else
-#define	evutil_timerclear(tvp)	(tvp)->tv_sec = (tvp)->tv_usec = 0
+#define evutil_timerclear(tvp)  (tvp)->tv_sec = (tvp)->tv_usec = 0
 #endif
 
-#define	evutil_timercmp(tvp, uvp, cmp)							\
-	(((tvp)->tv_sec == (uvp)->tv_sec) ?							\
-	 ((tvp)->tv_usec cmp (uvp)->tv_usec) :						\
-	 ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#define evutil_timercmp(tvp, uvp, cmp)                          \
+    (((tvp)->tv_sec == (uvp)->tv_sec) ?                         \
+     ((tvp)->tv_usec cmp (uvp)->tv_usec) :                      \
+     ((tvp)->tv_sec cmp (uvp)->tv_sec))
 
 #ifdef _EVENT_HAVE_TIMERISSET
 #define evutil_timerisset(tvp) timerisset(tvp)
 #else
-#define	evutil_timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)
+#define evutil_timerisset(tvp)  ((tvp)->tv_sec || (tvp)->tv_usec)
 #endif
 
 
 /* big-int related functions */
-ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
+ev_int64_t evutil_strtoll(const char* s, char** endptr, int base);
 
 
 #ifdef _EVENT_HAVE_GETTIMEOFDAY
 #define evutil_gettimeofday(tv, tz) gettimeofday((tv), (tz))
 #else
 struct timezone;
-int evutil_gettimeofday(struct timeval *tv, struct timezone *tz);
+int evutil_gettimeofday(struct timeval* tv, struct timezone* tz);
 #endif
 
-int evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
+int evutil_snprintf(char* buf, size_t buflen, const char* format, ...)
 #ifdef __GNUC__
-	__attribute__((format(printf, 3, 4)))
+__attribute__((format(printf, 3, 4)))
 #endif
-	;
-int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap);
+;
+int evutil_vsnprintf(char* buf, size_t buflen, const char* format, va_list ap);
 
 #ifdef __cplusplus
 }

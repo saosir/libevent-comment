@@ -66,22 +66,22 @@
 #include "evutil.h"
 #include "./log.h"
 
-struct evbuffer *
+struct evbuffer*
 evbuffer_new(void)
 {
-	struct evbuffer *buffer;
+    struct evbuffer* buffer;
 
-	buffer = calloc(1, sizeof(struct evbuffer));
+    buffer = calloc(1, sizeof(struct evbuffer));
 
-	return (buffer);
+    return (buffer);
 }
 
 void
-evbuffer_free(struct evbuffer *buffer)
+evbuffer_free(struct evbuffer* buffer)
 {
-	if (buffer->orig_buffer != NULL)
-		free(buffer->orig_buffer);
-	free(buffer);
+    if (buffer->orig_buffer != NULL)
+        free(buffer->orig_buffer);
+    free(buffer);
 }
 
 /*
@@ -90,119 +90,119 @@ evbuffer_free(struct evbuffer *buffer)
  */
 
 #define SWAP(x,y) do { \
-	(x)->buffer = (y)->buffer; \
-	(x)->orig_buffer = (y)->orig_buffer; \
-	(x)->misalign = (y)->misalign; \
-	(x)->totallen = (y)->totallen; \
-	(x)->off = (y)->off; \
+    (x)->buffer = (y)->buffer; \
+    (x)->orig_buffer = (y)->orig_buffer; \
+    (x)->misalign = (y)->misalign; \
+    (x)->totallen = (y)->totallen; \
+    (x)->off = (y)->off; \
 } while (0)
 
 int
-evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
+evbuffer_add_buffer(struct evbuffer* outbuf, struct evbuffer* inbuf)
 {
-	int res;
+    int res;
 
-	/* Short cut for better performance */
-    // outbufƒ⁄¥ÊŒ™0£¨÷±Ω”Ωªªªº¥ø…
-	if (outbuf->off == 0) {
-		struct evbuffer tmp;
-		size_t oldoff = inbuf->off;
+    /* Short cut for better performance */
+    // outbufÂÜÖÂ≠ò‰∏∫0ÔºåÁõ¥Êé•‰∫§Êç¢Âç≥ÂèØ
+    if (outbuf->off == 0) {
+        struct evbuffer tmp;
+        size_t oldoff = inbuf->off;
 
-		/* Swap them directly */
-		SWAP(&tmp, outbuf);
-		SWAP(outbuf, inbuf);
-		SWAP(inbuf, &tmp);
+        /* Swap them directly */
+        SWAP(&tmp, outbuf);
+        SWAP(outbuf, inbuf);
+        SWAP(inbuf, &tmp);
 
-		/*
-		 * Optimization comes with a price; we need to notify the
-		 * buffer if necessary of the changes. oldoff is the amount
-		 * of data that we transfered from inbuf to outbuf
-		 */
-		if (inbuf->off != oldoff && inbuf->cb != NULL)
-			(*inbuf->cb)(inbuf, oldoff, inbuf->off, inbuf->cbarg);
-		if (oldoff && outbuf->cb != NULL)
-			(*outbuf->cb)(outbuf, 0, oldoff, outbuf->cbarg);
+        /*
+         * Optimization comes with a price; we need to notify the
+         * buffer if necessary of the changes. oldoff is the amount
+         * of data that we transfered from inbuf to outbuf
+         */
+        if (inbuf->off != oldoff && inbuf->cb != NULL)
+            (*inbuf->cb)(inbuf, oldoff, inbuf->off, inbuf->cbarg);
+        if (oldoff && outbuf->cb != NULL)
+            (*outbuf->cb)(outbuf, 0, oldoff, outbuf->cbarg);
 
-		return (0);
-	}
+        return (0);
+    }
 
-	res = evbuffer_add(outbuf, inbuf->buffer, inbuf->off);
-	if (res == 0) {
-		/* We drain the input buffer on success */
-		evbuffer_drain(inbuf, inbuf->off);
-	}
+    res = evbuffer_add(outbuf, inbuf->buffer, inbuf->off);
+    if (res == 0) {
+        /* We drain the input buffer on success */
+        evbuffer_drain(inbuf, inbuf->off);
+    }
 
-	return (res);
+    return (res);
 }
 
 int
-evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
+evbuffer_add_vprintf(struct evbuffer* buf, const char* fmt, va_list ap)
 {
-	char *buffer;
-	size_t space;
-	size_t oldoff = buf->off;
-	int sz;
-	va_list aq;
+    char* buffer;
+    size_t space;
+    size_t oldoff = buf->off;
+    int sz;
+    va_list aq;
 
-	/* make sure that at least some space is available */
-	if (evbuffer_expand(buf, 64) < 0)
-		return (-1);
-	for (;;) {
-		size_t used = buf->misalign + buf->off;
-		buffer = (char *)buf->buffer + buf->off;
-		assert(buf->totallen >= used);
-		space = buf->totallen - used;
+    /* make sure that at least some space is available */
+    if (evbuffer_expand(buf, 64) < 0)
+        return (-1);
+    for (;;) {
+        size_t used = buf->misalign + buf->off;
+        buffer = (char*)buf->buffer + buf->off;
+        assert(buf->totallen >= used);
+        space = buf->totallen - used;
 
 #ifndef va_copy
-#define	va_copy(dst, src)	memcpy(&(dst), &(src), sizeof(va_list))
+#define    va_copy(dst, src)    memcpy(&(dst), &(src), sizeof(va_list))
 #endif
-		va_copy(aq, ap);
+        va_copy(aq, ap);
 
-		sz = evutil_vsnprintf(buffer, space, fmt, aq);
+        sz = evutil_vsnprintf(buffer, space, fmt, aq);
 
-		va_end(aq);
+        va_end(aq);
 
-		if (sz < 0)
-			return (-1);
-		if ((size_t)sz < space) {
-			buf->off += sz;
-			if (buf->cb != NULL)
-				(*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
-			return (sz);
-		}
-		if (evbuffer_expand(buf, sz + 1) == -1)
-			return (-1);
+        if (sz < 0)
+            return (-1);
+        if ((size_t)sz < space) {
+            buf->off += sz;
+            if (buf->cb != NULL)
+                (*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
+            return (sz);
+        }
+        if (evbuffer_expand(buf, sz + 1) == -1)
+            return (-1);
 
-	}
-	/* NOTREACHED */
+    }
+    /* NOTREACHED */
 }
 
 int
-evbuffer_add_printf(struct evbuffer *buf, const char *fmt, ...)
+evbuffer_add_printf(struct evbuffer* buf, const char* fmt, ...)
 {
-	int res = -1;
-	va_list ap;
+    int res = -1;
+    va_list ap;
 
-	va_start(ap, fmt);
-	res = evbuffer_add_vprintf(buf, fmt, ap);
-	va_end(ap);
+    va_start(ap, fmt);
+    res = evbuffer_add_vprintf(buf, fmt, ap);
+    va_end(ap);
 
-	return (res);
+    return (res);
 }
 
 /* Reads data from an event buffer and drains the bytes read */
 
 int
-evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen)
+evbuffer_remove(struct evbuffer* buf, void* data, size_t datlen)
 {
-	size_t nread = datlen;
-	if (nread >= buf->off)
-		nread = buf->off;
+    size_t nread = datlen;
+    if (nread >= buf->off)
+        nread = buf->off;
 
-	memcpy(data, buf->buffer, nread);
-	evbuffer_drain(buf, nread);
+    memcpy(data, buf->buffer, nread);
+    evbuffer_drain(buf, nread);
 
-	return (nread);
+    return (nread);
 }
 
 /*
@@ -210,150 +210,150 @@ evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen)
  * The returned buffer needs to be freed by the called.
  */
 
-char *
-evbuffer_readline(struct evbuffer *buffer)
+char*
+evbuffer_readline(struct evbuffer* buffer)
 {
-	u_char *data = EVBUFFER_DATA(buffer);
-	size_t len = EVBUFFER_LENGTH(buffer);
-	char *line;
-	unsigned int i;
+    u_char* data = EVBUFFER_DATA(buffer);
+    size_t len = EVBUFFER_LENGTH(buffer);
+    char* line;
+    unsigned int i;
 
-	for (i = 0; i < len; i++) {
-		if (data[i] == '\r' || data[i] == '\n')
-			break;
-	}
+    for (i = 0; i < len; i++) {
+        if (data[i] == '\r' || data[i] == '\n')
+            break;
+    }
 
-	if (i == len)
-		return (NULL);
+    if (i == len)
+        return (NULL);
 
-	if ((line = malloc(i + 1)) == NULL) {
-		fprintf(stderr, "%s: out of memory\n", __func__);
-		return (NULL);
-	}
+    if ((line = malloc(i + 1)) == NULL) {
+        fprintf(stderr, "%s: out of memory\n", __func__);
+        return (NULL);
+    }
 
-	memcpy(line, data, i);
-	line[i] = '\0';
+    memcpy(line, data, i);
+    line[i] = '\0';
 
-	/*
-	 * Some protocols terminate a line with '\r\n', so check for
-	 * that, too.
-	 */
-	if ( i < len - 1 ) {
-		char fch = data[i], sch = data[i+1];
+    /*
+     * Some protocols terminate a line with '\r\n', so check for
+     * that, too.
+     */
+    if ( i < len - 1 ) {
+        char fch = data[i], sch = data[i + 1];
 
-		/* Drain one more character if needed */
-		if ( (sch == '\r' || sch == '\n') && sch != fch )
-			i += 1;
-	}
+        /* Drain one more character if needed */
+        if ( (sch == '\r' || sch == '\n') && sch != fch )
+            i += 1;
+    }
 
-	evbuffer_drain(buffer, i + 1);
+    evbuffer_drain(buffer, i + 1);
 
-	return (line);
+    return (line);
 }
 
-char *
-evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
-		enum evbuffer_eol_style eol_style)
+char*
+evbuffer_readln(struct evbuffer* buffer, size_t* n_read_out,
+                enum evbuffer_eol_style eol_style)
 {
-	u_char *data = EVBUFFER_DATA(buffer);
-	u_char *start_of_eol, *end_of_eol;
-	size_t len = EVBUFFER_LENGTH(buffer);
-	char *line;
-	unsigned int i, n_to_copy, n_to_drain;
+    u_char* data = EVBUFFER_DATA(buffer);
+    u_char* start_of_eol, *end_of_eol;
+    size_t len = EVBUFFER_LENGTH(buffer);
+    char* line;
+    unsigned int i, n_to_copy, n_to_drain;
 
-	if (n_read_out)
-		*n_read_out = 0;
+    if (n_read_out)
+        *n_read_out = 0;
 
-	/* depending on eol_style, set start_of_eol to the first character
-	 * in the newline, and end_of_eol to one after the last character. */
-	switch (eol_style) {
-        // \r ªÚ’ﬂ \n ±ª◊˜Œ™ªª––¥¶¿Ì£¨∂ºª·±ª“∆≥˝±»»Á
+    /* depending on eol_style, set start_of_eol to the first character
+     * in the newline, and end_of_eol to one after the last character. */
+    switch (eol_style) {
+        // \r ÊàñËÄÖ \n Ë¢´‰Ωú‰∏∫Êç¢Ë°åÂ§ÑÁêÜÔºåÈÉΩ‰ºöË¢´ÁßªÈô§ÊØîÂ¶Ç
         // aaa\r\r\n\nbbbb   -> aaa  NULL
         // aaaa\r\n\nbbb\r\n -> aaa bbb
         // \r\r\aaa\nbbb     -> "" aaa NULL
-	case EVBUFFER_EOL_ANY:
-		for (i = 0; i < len; i++) {
-			if (data[i] == '\r' || data[i] == '\n')
-				break;
-		}
-		if (i == len)
-			return (NULL);
-		start_of_eol = data+i;
-		++i;
-		for ( ; i < len; i++) {
-			if (data[i] != '\r' && data[i] != '\n')
-				break;
-		}
-		end_of_eol = data+i;
-		break;
-    // ¥¶¿Ì \r\n ªÚ’ﬂ \n£¨±»»Á
-    // aaa\r\nbbb\r\n -> aaa bbb
-    // \naaa\nbbb -> "" aaa NULL
-	case EVBUFFER_EOL_CRLF:
-		end_of_eol = memchr(data, '\n', len);
-		if (!end_of_eol)
-			return (NULL);
-		if (end_of_eol > data && *(end_of_eol-1) == '\r')
-			start_of_eol = end_of_eol - 1;
-		else
-			start_of_eol = end_of_eol;
-		end_of_eol++; /*point to one after the LF. */
-		break;
-        // \r\n◊˜Œ™ªª––
-	case EVBUFFER_EOL_CRLF_STRICT: {
-		u_char *cp = data;
-		while ((cp = memchr(cp, '\r', len-(cp-data)))) {
-			if (cp < data+len-1 && *(cp+1) == '\n')
-				break;
-			if (++cp >= data+len) {
-				cp = NULL;
-				break;
-			}
-		}
-		if (!cp)
-			return (NULL);
-		start_of_eol = cp;
-		end_of_eol = cp+2;
-		break;
-	}
-    // \n ◊˜Œ™ªª––
-	case EVBUFFER_EOL_LF:
-		start_of_eol = memchr(data, '\n', len);
-		if (!start_of_eol)
-			return (NULL);
-		end_of_eol = start_of_eol + 1;
-		break;
-	default:
-		return (NULL);
-	}
+    case EVBUFFER_EOL_ANY:
+        for (i = 0; i < len; i++) {
+            if (data[i] == '\r' || data[i] == '\n')
+                break;
+        }
+        if (i == len)
+            return (NULL);
+        start_of_eol = data + i;
+        ++i;
+        for ( ; i < len; i++) {
+            if (data[i] != '\r' && data[i] != '\n')
+                break;
+        }
+        end_of_eol = data + i;
+        break;
+        // Â§ÑÁêÜ \r\n ÊàñËÄÖ \nÔºåÊØîÂ¶Ç
+        // aaa\r\nbbb\r\n -> aaa bbb
+        // \naaa\nbbb -> "" aaa NULL
+    case EVBUFFER_EOL_CRLF:
+        end_of_eol = memchr(data, '\n', len);
+        if (!end_of_eol)
+            return (NULL);
+        if (end_of_eol > data && *(end_of_eol - 1) == '\r')
+            start_of_eol = end_of_eol - 1;
+        else
+            start_of_eol = end_of_eol;
+        end_of_eol++; /*point to one after the LF. */
+        break;
+        // \r\n‰Ωú‰∏∫Êç¢Ë°å
+    case EVBUFFER_EOL_CRLF_STRICT: {
+        u_char* cp = data;
+        while ((cp = memchr(cp, '\r', len - (cp - data)))) {
+            if (cp < data + len - 1 && *(cp + 1) == '\n')
+                break;
+            if (++cp >= data + len) {
+                cp = NULL;
+                break;
+            }
+        }
+        if (!cp)
+            return (NULL);
+        start_of_eol = cp;
+        end_of_eol = cp + 2;
+        break;
+    }
+    // \n ‰Ωú‰∏∫Êç¢Ë°å
+    case EVBUFFER_EOL_LF:
+        start_of_eol = memchr(data, '\n', len);
+        if (!start_of_eol)
+            return (NULL);
+        end_of_eol = start_of_eol + 1;
+        break;
+    default:
+        return (NULL);
+    }
 
-	n_to_copy = start_of_eol - data;
-	n_to_drain = end_of_eol - data;
+    n_to_copy = start_of_eol - data;
+    n_to_drain = end_of_eol - data;
 
-	if ((line = malloc(n_to_copy+1)) == NULL) {
-		event_warn("%s: out of memory\n", __func__);
-		return (NULL);
-	}
+    if ((line = malloc(n_to_copy + 1)) == NULL) {
+        event_warn("%s: out of memory\n", __func__);
+        return (NULL);
+    }
 
-	memcpy(line, data, n_to_copy);
-	line[n_to_copy] = '\0';
+    memcpy(line, data, n_to_copy);
+    line[n_to_copy] = '\0';
 
-	evbuffer_drain(buffer, n_to_drain);
-	if (n_read_out)
-		*n_read_out = (size_t)n_to_copy;
+    evbuffer_drain(buffer, n_to_drain);
+    if (n_read_out)
+        *n_read_out = (size_t)n_to_copy;
 
-	return (line);
+    return (line);
 }
 
 /* Adds data to an event buffer */
-// µ˜’˚ƒ⁄¥Ê£¨Ω´buffer«∞“∆µƒ ˝æ›∑≈µΩ«∞√Ê£¨’‚—˘ø…“‘≥‰∑÷¿˚”√“—æ≠±ª“∆≥˝
-// µƒƒ⁄¥Ê£¨µ´ «–Ë“™Ω´∫Û√Êµƒƒ⁄¥Ê«∞œÚøΩ±¥
+// Ë∞ÉÊï¥ÂÜÖÂ≠òÔºåÂ∞ÜbufferÂâçÁßªÁöÑÊï∞ÊçÆÊîæÂà∞ÂâçÈù¢ÔºåËøôÊ†∑ÂèØ‰ª•ÂÖÖÂàÜÂà©Áî®Â∑≤ÁªèË¢´ÁßªÈô§
+// ÁöÑÂÜÖÂ≠òÔºå‰ΩÜÊòØÈúÄË¶ÅÂ∞ÜÂêéÈù¢ÁöÑÂÜÖÂ≠òÂâçÂêëÊã∑Ë¥ù
 static void
-evbuffer_align(struct evbuffer *buf)
+evbuffer_align(struct evbuffer* buf)
 {
-	memmove(buf->orig_buffer, buf->buffer, buf->off);
-	buf->buffer = buf->orig_buffer;
-	buf->misalign = 0;
+    memmove(buf->orig_buffer, buf->buffer, buf->off);
+    buf->buffer = buf->orig_buffer;
+    buf->misalign = 0;
 }
 
 #ifndef SIZE_MAX
@@ -361,101 +361,101 @@ evbuffer_align(struct evbuffer *buf)
 #endif
 
 /* Expands the available space in the event buffer to at least datlen */
-// ¿©≥‰datlen¥Û–°µƒƒ⁄¥Ê
+// Êâ©ÂÖÖdatlenÂ§ßÂ∞èÁöÑÂÜÖÂ≠ò
 int
-evbuffer_expand(struct evbuffer *buf, size_t datlen)
+evbuffer_expand(struct evbuffer* buf, size_t datlen)
 {
-	size_t used = buf->misalign + buf->off;
-	size_t need;
+    size_t used = buf->misalign + buf->off;
+    size_t need;
 
-	assert(buf->totallen >= used);
+    assert(buf->totallen >= used);
 
-	/* If we can fit all the data, then we don't have to do anything */
-    // »Áπ˚”–datlen¥Û–°µƒƒ⁄¥Êø…”√£¨ƒ«√¥æÕ≤ª¿©≥‰
-	if (buf->totallen - used >= datlen)
-		return (0);
-	/* If we would need to overflow to fit this much data, we can't
-	 * do anything. */
-	if (datlen > SIZE_MAX - buf->off)
-		return (-1);
+    /* If we can fit all the data, then we don't have to do anything */
+    // Â¶ÇÊûúÊúâdatlenÂ§ßÂ∞èÁöÑÂÜÖÂ≠òÂèØÁî®ÔºåÈÇ£‰πàÂ∞±‰∏çÊâ©ÂÖÖ
+    if (buf->totallen - used >= datlen)
+        return (0);
+    /* If we would need to overflow to fit this much data, we can't
+     * do anything. */
+    if (datlen > SIZE_MAX - buf->off)
+        return (-1);
 
-	/*
-	 * If the misalignment fulfills our data needs, we just force an
-	 * alignment to happen.  Afterwards, we have enough space.
-	 */
-	 //  £”‡ƒ⁄¥Ê◊„πªdatlenµƒª∞£¨÷ª–Ë“™Ω´∫Û√Êµƒƒ⁄¥ÊÕ˘…œ“∆æÕƒ‹¬˙◊„
-	 // totallen-off∞¸¿®¡À∑œ∆˙µƒ«∞√Ê≤ø∑÷ƒ⁄¥Ê∫Û√ª”– π”√µƒƒ⁄¥Ê
-	if (buf->totallen - buf->off >= datlen) {
-		evbuffer_align(buf);
-	} else {
-		void *newbuf;
-		size_t length = buf->totallen;
-		size_t need = buf->off + datlen; // –Ë“™…Í«Îµƒƒ⁄¥Ê¥Û–°
+    /*
+     * If the misalignment fulfills our data needs, we just force an
+     * alignment to happen.  Afterwards, we have enough space.
+     */
+    // Ââ©‰ΩôÂÜÖÂ≠òË∂≥Â§üdatlenÁöÑËØùÔºåÂè™ÈúÄË¶ÅÂ∞ÜÂêéÈù¢ÁöÑÂÜÖÂ≠òÂæÄ‰∏äÁßªÂ∞±ËÉΩÊª°Ë∂≥
+    // totallen-offÂåÖÊã¨‰∫ÜÂ∫üÂºÉÁöÑÂâçÈù¢ÈÉ®ÂàÜÂÜÖÂ≠òÂêéÊ≤°Êúâ‰ΩøÁî®ÁöÑÂÜÖÂ≠ò
+    if (buf->totallen - buf->off >= datlen) {
+        evbuffer_align(buf);
+    } else {
+        void* newbuf;
+        size_t length = buf->totallen;
+        size_t need = buf->off + datlen; // ÈúÄË¶ÅÁî≥ËØ∑ÁöÑÂÜÖÂ≠òÂ§ßÂ∞è
 
-		if (length < 256)
-			length = 256;
-		if (need < SIZE_MAX / 2) {
-			while (length < need) {
-				length <<= 1;
-			}
-		} else {
-			length = need;
-		}
+        if (length < 256)
+            length = 256;
+        if (need < SIZE_MAX / 2) {
+            while (length < need) {
+                length <<= 1;
+            }
+        } else {
+            length = need;
+        }
 
-		if (buf->orig_buffer != buf->buffer)
-			evbuffer_align(buf);
-		if ((newbuf = realloc(buf->buffer, length)) == NULL)
-			return (-1);
+        if (buf->orig_buffer != buf->buffer)
+            evbuffer_align(buf);
+        if ((newbuf = realloc(buf->buffer, length)) == NULL)
+            return (-1);
 
-		buf->orig_buffer = buf->buffer = newbuf;
-		buf->totallen = length;
-	}
+        buf->orig_buffer = buf->buffer = newbuf;
+        buf->totallen = length;
+    }
 
-	return (0);
+    return (0);
 }
 
 int
-evbuffer_add(struct evbuffer *buf, const void *data, size_t datlen)
+evbuffer_add(struct evbuffer* buf, const void* data, size_t datlen)
 {
-	size_t used = buf->misalign + buf->off;
-	size_t oldoff = buf->off;
+    size_t used = buf->misalign + buf->off;
+    size_t oldoff = buf->off;
 
-	if (buf->totallen - used < datlen) {
-		if (evbuffer_expand(buf, datlen) == -1)
-			return (-1);
-	}
+    if (buf->totallen - used < datlen) {
+        if (evbuffer_expand(buf, datlen) == -1)
+            return (-1);
+    }
 
-	memcpy(buf->buffer + buf->off, data, datlen);
-	buf->off += datlen;
+    memcpy(buf->buffer + buf->off, data, datlen);
+    buf->off += datlen;
 
-	if (datlen && buf->cb != NULL)
-		(*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
+    if (datlen && buf->cb != NULL)
+        (*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
 
-	return (0);
+    return (0);
 }
 
-// ∑≈∆˙buf«∞√Êlen◊÷Ω⁄¥Û–°µƒƒ⁄¥Ê
+// ÊîæÂºÉbufÂâçÈù¢lenÂ≠óËäÇÂ§ßÂ∞èÁöÑÂÜÖÂ≠ò
 void
-evbuffer_drain(struct evbuffer *buf, size_t len)
+evbuffer_drain(struct evbuffer* buf, size_t len)
 {
-	size_t oldoff = buf->off;
+    size_t oldoff = buf->off;
 
-	if (len >= buf->off) {
-		buf->off = 0;
-		buf->buffer = buf->orig_buffer;
-		buf->misalign = 0;
-		goto done;
-	}
-    // «∞“∆
-	buf->buffer += len;
-	buf->misalign += len;
-    // ø…”√ƒ⁄¥Êœ‡”¶ºı…Ÿ
-	buf->off -= len;
+    if (len >= buf->off) {
+        buf->off = 0;
+        buf->buffer = buf->orig_buffer;
+        buf->misalign = 0;
+        goto done;
+    }
+    // ÂâçÁßª
+    buf->buffer += len;
+    buf->misalign += len;
+    // ÂèØÁî®ÂÜÖÂ≠òÁõ∏Â∫îÂáèÂ∞ë
+    buf->off -= len;
 
- done:
-	/* Tell someone about changes in this buffer */
-	if (buf->off != oldoff && buf->cb != NULL)
-		(*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
+done:
+    /* Tell someone about changes in this buffer */
+    if (buf->off != oldoff && buf->cb != NULL)
+        (*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
 
 }
 
@@ -463,107 +463,107 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
  * Reads data from a file descriptor into a buffer.
  */
 
-#define EVBUFFER_MAX_READ	4096
+#define EVBUFFER_MAX_READ    4096
 
 int
-evbuffer_read(struct evbuffer *buf, int fd, int howmuch)
+evbuffer_read(struct evbuffer* buf, int fd, int howmuch)
 {
-	u_char *p;
-	size_t oldoff = buf->off;
-	int n = EVBUFFER_MAX_READ;
+    u_char* p;
+    size_t oldoff = buf->off;
+    int n = EVBUFFER_MAX_READ;
 
 #if defined(FIONREAD)
 #ifdef WIN32
-	long lng = n;
-	if (ioctlsocket(fd, FIONREAD, &lng) == -1 || (n=lng) <= 0) {
+    long lng = n;
+    if (ioctlsocket(fd, FIONREAD, &lng) == -1 || (n = lng) <= 0) {
 #else
-	if (ioctl(fd, FIONREAD, &n) == -1 || n <= 0) {
+    if (ioctl(fd, FIONREAD, &n) == -1 || n <= 0) {
 #endif
-		n = EVBUFFER_MAX_READ;
-	} else if (n > EVBUFFER_MAX_READ && n > howmuch) {
-		/*
-		 * It's possible that a lot of data is available for
-		 * reading.  We do not want to exhaust resources
-		 * before the reader has a chance to do something
-		 * about it.  If the reader does not tell us how much
-		 * data we should read, we artifically limit it.
-		 */
-		if ((size_t)n > buf->totallen << 2)
-			n = buf->totallen << 2;
-		if (n < EVBUFFER_MAX_READ)
-			n = EVBUFFER_MAX_READ;
-	}
+        n = EVBUFFER_MAX_READ;
+    } else if (n > EVBUFFER_MAX_READ && n > howmuch) {
+        /*
+         * It's possible that a lot of data is available for
+         * reading.  We do not want to exhaust resources
+         * before the reader has a chance to do something
+         * about it.  If the reader does not tell us how much
+         * data we should read, we artifically limit it.
+         */
+        if ((size_t)n > buf->totallen << 2)
+            n = buf->totallen << 2;
+        if (n < EVBUFFER_MAX_READ)
+            n = EVBUFFER_MAX_READ;
+    }
 #endif
-	if (howmuch < 0 || howmuch > n)
-		howmuch = n;
+    if (howmuch < 0 || howmuch > n)
+        howmuch = n;
 
-	/* If we don't have FIONREAD, we might waste some space here */
-	if (evbuffer_expand(buf, howmuch) == -1)
-		return (-1);
+    /* If we don't have FIONREAD, we might waste some space here */
+    if (evbuffer_expand(buf, howmuch) == -1)
+        return (-1);
 
-	/* We can append new data at this point */
-	p = buf->buffer + buf->off;
+    /* We can append new data at this point */
+    p = buf->buffer + buf->off;
 
 #ifndef WIN32
-	n = read(fd, p, howmuch);
+    n = read(fd, p, howmuch);
 #else
-	n = recv(fd, p, howmuch, 0);
+    n = recv(fd, p, howmuch, 0);
 #endif
-	if (n == -1)
-		return (-1);
-	if (n == 0)
-		return (0);
+    if (n == -1)
+        return (-1);
+    if (n == 0)
+        return (0);
 
-	buf->off += n;
+    buf->off += n;
 
-	/* Tell someone about changes in this buffer */
-	if (buf->off != oldoff && buf->cb != NULL)
-		(*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
+    /* Tell someone about changes in this buffer */
+    if (buf->off != oldoff && buf->cb != NULL)
+        (*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
 
-	return (n);
+    return (n);
 }
 
 int
-evbuffer_write(struct evbuffer *buffer, int fd)
+evbuffer_write(struct evbuffer* buffer, int fd)
 {
-	int n;
+    int n;
 
 #ifndef WIN32
-	n = write(fd, buffer->buffer, buffer->off);
+    n = write(fd, buffer->buffer, buffer->off);
 #else
-	n = send(fd, buffer->buffer, buffer->off, 0);
+    n = send(fd, buffer->buffer, buffer->off, 0);
 #endif
-	if (n == -1)
-		return (-1);
-	if (n == 0)
-		return (0);
-	evbuffer_drain(buffer, n);
+    if (n == -1)
+        return (-1);
+    if (n == 0)
+        return (0);
+    evbuffer_drain(buffer, n);
 
-	return (n);
+    return (n);
 }
 
-u_char *
-evbuffer_find(struct evbuffer *buffer, const u_char *what, size_t len)
+u_char*
+evbuffer_find(struct evbuffer* buffer, const u_char* what, size_t len)
 {
-	u_char *search = buffer->buffer, *end = search + buffer->off;
-	u_char *p;
+    u_char* search = buffer->buffer, *end = search + buffer->off;
+    u_char* p;
 
-	while (search < end &&
-	    (p = memchr(search, *what, end - search)) != NULL) {
-		if (p + len > end)
-			break;
-		if (memcmp(p, what, len) == 0)
-			return (p);
-		search = p + 1;
-	}
+    while (search < end &&
+           (p = memchr(search, *what, end - search)) != NULL) {
+        if (p + len > end)
+            break;
+        if (memcmp(p, what, len) == 0)
+            return (p);
+        search = p + 1;
+    }
 
-	return (NULL);
+    return (NULL);
 }
 
-void evbuffer_setcb(struct evbuffer *buffer,
-    void (*cb)(struct evbuffer *, size_t, size_t, void *),
-    void *cbarg)
+void evbuffer_setcb(struct evbuffer* buffer,
+                    void (*cb)(struct evbuffer*, size_t, size_t, void*),
+                    void* cbarg)
 {
-	buffer->cb = cb;
-	buffer->cbarg = cbarg;
+    buffer->cb = cb;
+    buffer->cbarg = cbarg;
 }

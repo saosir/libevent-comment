@@ -185,40 +185,40 @@ typedef unsigned short u_short;
 //给evente->ev_flags使用，标识某个event已经插入某队列
 
 // 计时器，event_base中的timeheap最小堆
-#define EVLIST_TIMEOUT	0x01
+#define EVLIST_TIMEOUT  0x01
 // event_loop，这是一个总的队列，event_base中的eventqueue
-#define EVLIST_INSERTED	0x02
+#define EVLIST_INSERTED 0x02
 // 信号，event_base的sig
-#define EVLIST_SIGNAL	0x04
+#define EVLIST_SIGNAL   0x04
 // 活动队列，插入这个链表说明即将被回调，
 // event_base中的activequeues，有优先级大小
-#define EVLIST_ACTIVE	0x08
+#define EVLIST_ACTIVE   0x08
 // 信号事件就是一个内部event，用于专门处理信号回调
-#define EVLIST_INTERNAL	0x10
+#define EVLIST_INTERNAL 0x10
 // 初始化的时候用的
-#define EVLIST_INIT	0x80
+#define EVLIST_INIT 0x80
 
 /* EVLIST_X_ Private space: 0x1000-0xf000 */
-#define EVLIST_ALL	(0xf000 | 0x9f)
+#define EVLIST_ALL  (0xf000 | 0x9f)
 
 // 时间类型，添加event到event_loop的时候，用户通过下面的
 // 宏指定该event是什么事件类型
-#define EV_TIMEOUT	0x01
-#define EV_READ		0x02
-#define EV_WRITE	0x04
-#define EV_SIGNAL	0x08
+#define EV_TIMEOUT  0x01
+#define EV_READ     0x02
+#define EV_WRITE    0x04
+#define EV_SIGNAL   0x08
 // 有这个标志说明该event是永久的，需要循环插入，比如
 // 用于计时器，一般计时器回调一次会被从event_loop删除，
 // 有这个标志就会一直放到event_loop中
-#define EV_PERSIST	0x10	/* Persistant event */
+#define EV_PERSIST  0x10    /* Persistant event */
 
 /* Fix so that ppl dont have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
 #define _EVENT_DEFINED_TQENTRY
-#define TAILQ_ENTRY(type)						\
-struct {								\
-	struct type *tqe_next;	/* next element */			\
-	struct type **tqe_prev;	/* address of previous next element */	\
+#define TAILQ_ENTRY(type)                       \
+struct {                                \
+    struct type *tqe_next;  /* next element */          \
+    struct type **tqe_prev; /* address of previous next element */  \
 }
 #endif /* !TAILQ_ENTRY */
 
@@ -228,58 +228,58 @@ struct event_base;
 //该链表实现可以参看queue.h，实现得非常精巧,对于理解后续代码很有帮助
 struct event {
     //所有已注册到event_loop的节点
-	TAILQ_ENTRY (event) ev_next;
+    TAILQ_ENTRY (event) ev_next;
     // 活动 队列节点
-	TAILQ_ENTRY (event) ev_active_next; //active list
-	// 信号队列节点
-	TAILQ_ENTRY (event) ev_signal_next; //singnal list
-	// 最小堆,标识自己在堆中的位置
-	unsigned int min_heap_idx;	/* for managing timeouts*/
+    TAILQ_ENTRY (event) ev_active_next; //active list
+    // 信号队列节点
+    TAILQ_ENTRY (event) ev_signal_next; //singnal list
+    // 最小堆,标识自己在堆中的位置
+    unsigned int min_heap_idx;  /* for managing timeouts*/
 
     //指向管理自己的event_base，即归属于哪个event_loop
-	struct event_base *ev_base;
+    struct event_base* ev_base;
 
     //关联的文件描述符,timeout event被忽略
-	int ev_fd;
+    int ev_fd;
     //监听的类型
-	short ev_events;
+    short ev_events;
     //插入active之后要被调用的次数
-	short ev_ncalls;
+    short ev_ncalls;
     //通过该变量可以在调用过程中删除，因为
     // 有些event会在回调函数中删除自己，使用
     // 该变量就是为了防止这种情况，让event可以
     // 正确的将自己从event_loop中删除
-	short *ev_pncalls;	/* Allows deletes in callback */
+    short* ev_pncalls;  /* Allows deletes in callback */
 
-	//超时的时间与min_heap_idx配合使用，用于二叉堆排序
-	struct timeval ev_timeout;
-	/* 优先级，事件发生即将被回调时插入ev_base->activequeues[ev_pri]中，越小优先级越高*/
-	int ev_pri;
+    //超时的时间与min_heap_idx配合使用，用于二叉堆排序
+    struct timeval ev_timeout;
+    /* 优先级，事件发生即将被回调时插入ev_base->activequeues[ev_pri]中，越小优先级越高*/
+    int ev_pri;
 
-	//指定的回调函数与参数
-	void (*ev_callback)(int, short, void *arg);
-	void *ev_arg;
-	// 在活动队列被回调的时候，该变量说明发生了什么事件，event result的简称
-	int ev_res;		/* result passed to event callback */
+    //指定的回调函数与参数
+    void (*ev_callback)(int, short, void* arg);
+    void* ev_arg;
+    // 在活动队列被回调的时候，该变量说明发生了什么事件，event result的简称
+    int ev_res;     /* result passed to event callback */
     //标志位，标志该event已经被插入哪几个链表中,为EVLIST_*的多种组合
-	int ev_flags;
+    int ev_flags;
 };
 #else
 struct event;
 #endif
 
-#define EVENT_SIGNAL(ev)	(int)(ev)->ev_fd
-#define EVENT_FD(ev)		(int)(ev)->ev_fd
+#define EVENT_SIGNAL(ev)    (int)(ev)->ev_fd
+#define EVENT_FD(ev)        (int)(ev)->ev_fd
 
 /*
  * Key-Value pairs.  Can be used for HTTP headers but also for
  * query argument parsing.
  */
 struct evkeyval {
-	TAILQ_ENTRY(evkeyval) next;
+    TAILQ_ENTRY(evkeyval) next;
 
-	char *key;
-	char *value;
+    char* key;
+    char* value;
 };
 
 #ifdef _EVENT_DEFINED_TQENTRY
@@ -301,7 +301,7 @@ TAILQ_HEAD (evkeyvalq, evkeyval);
 
   @see event_base_set(), event_base_free(), event_init()
  */
-struct event_base *event_base_new(void);
+struct event_base* event_base_new(void);
 
 /**
   Initialize the event API.
@@ -312,7 +312,7 @@ struct event_base *event_base_new(void);
 
   @see event_base_set(), event_base_new()
  */
-struct event_base *event_init(void);
+struct event_base* event_init(void);
 
 /**
   Reinitialized the event base after a fork
@@ -324,7 +324,7 @@ struct event_base *event_init(void);
   @return 0 if successful, or -1 if some events could not be re-added.
   @see event_base_new(), event_init()
 */
-int event_reinit(struct event_base *base);
+int event_reinit(struct event_base* base);
 
 /**
   Loop to process events.
@@ -344,7 +344,7 @@ int event_dispatch(void);
   @param eb the event_base structure returned by event_init()
   @see event_init(), event_dispatch()
  */
-int event_base_dispatch(struct event_base *);
+int event_base_dispatch(struct event_base*);
 
 
 /**
@@ -353,7 +353,7 @@ int event_base_dispatch(struct event_base *);
  @param eb the event_base structure returned by event_base_new()
  @return a string identifying the kernel event mechanism (kqueue, epoll, etc.)
  */
-const char *event_base_get_method(struct event_base *);
+const char* event_base_get_method(struct event_base*);
 
 
 /**
@@ -364,20 +364,20 @@ const char *event_base_get_method(struct event_base *);
 
   @param eb an event_base to be freed
  */
-void event_base_free(struct event_base *);
+void event_base_free(struct event_base*);
 
 
 #define _EVENT_LOG_DEBUG 0
 #define _EVENT_LOG_MSG   1
 #define _EVENT_LOG_WARN  2
 #define _EVENT_LOG_ERR   3
-typedef void (*event_log_cb)(int severity, const char *msg);
+typedef void (*event_log_cb)(int severity, const char* msg);
 /**
   Redirect libevent's log messages.
 
   @param cb a function taking two arguments: an integer severity between
      _EVENT_LOG_DEBUG and _EVENT_LOG_ERR, and a string.  If cb is NULL,
-	 then the default log is used.
+     then the default log is used.
   */
 void event_set_log_callback(event_log_cb cb);
 
@@ -387,16 +387,16 @@ void event_set_log_callback(event_log_cb cb);
   @param eb the event base
   @param ev the event
  */
-int event_base_set(struct event_base *, struct event *);
+int event_base_set(struct event_base*, struct event*);
 
 /**
  event_loop() flags
  */
 /*@{*/
 // 只循环一次
-#define EVLOOP_ONCE	0x01	/**< Block at most once. */
+#define EVLOOP_ONCE 0x01    /**< Block at most once. */
 // 不阻塞，也就是不会计算距离计时器最小触发时间进行睡眠
-#define EVLOOP_NONBLOCK	0x02	/**< Do not block. */
+#define EVLOOP_NONBLOCK 0x02    /**< Do not block. */
 /*@}*/
 
 /**
@@ -422,7 +422,7 @@ int event_loop(int);
     registered.
   @see event_loopexit(), event_base_loop()
   */
-int event_base_loop(struct event_base *, int);
+int event_base_loop(struct event_base*, int);
 
 /**
   Exit the event loop after the specified time.
@@ -437,7 +437,7 @@ int event_base_loop(struct event_base *, int);
   @return 0 if successful, or -1 if an error occurred
   @see event_loop(), event_base_loop(), event_base_loopexit()
   */
-int event_loopexit(const struct timeval *);
+int event_loopexit(const struct timeval*);
 
 
 /**
@@ -454,7 +454,7 @@ int event_loopexit(const struct timeval *);
   @return 0 if successful, or -1 if an error occurred
   @see event_loopexit()
  */
-int event_base_loopexit(struct event_base *, const struct timeval *);
+int event_base_loopexit(struct event_base*, const struct timeval*);
 
 /**
   Abort the active event_loop() immediately.
@@ -483,7 +483,7 @@ int event_loopbreak(void);
   @return 0 if successful, or -1 if an error occurred
   @see event_base_loopexit
  */
-int event_base_loopbreak(struct event_base *);
+int event_base_loopbreak(struct event_base*);
 
 
 /**
@@ -492,7 +492,7 @@ int event_base_loopbreak(struct event_base *);
   @param ev the event struct
   @param tv timeval struct
  */
-#define evtimer_add(ev, tv)		event_add(ev, tv)
+#define evtimer_add(ev, tv)     event_add(ev, tv)
 
 
 /**
@@ -502,7 +502,7 @@ int event_base_loopbreak(struct event_base *);
   @param cb callback function
   @param arg argument that will be passed to the callback function
  */
-#define evtimer_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
+#define evtimer_set(ev, cb, arg)    event_set(ev, -1, 0, cb, arg)
 
 
 /**
@@ -510,9 +510,9 @@ int event_base_loopbreak(struct event_base *);
  *
  * @param ev the event struct to be disabled
  */
-#define evtimer_del(ev)			event_del(ev)
-#define evtimer_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
-#define evtimer_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
+#define evtimer_del(ev)         event_del(ev)
+#define evtimer_pending(ev, tv)     event_pending(ev, EV_TIMEOUT, tv)
+#define evtimer_initialized(ev)     ((ev)->ev_flags & EVLIST_INIT)
 
 /**
  * Add a timeout event.
@@ -520,7 +520,7 @@ int event_base_loopbreak(struct event_base *);
  * @param ev the event struct to be disabled
  * @param tv the timeout value, in seconds
  */
-#define timeout_add(ev, tv)		event_add(ev, tv)
+#define timeout_add(ev, tv)     event_add(ev, tv)
 
 
 /**
@@ -530,7 +530,7 @@ int event_base_loopbreak(struct event_base *);
  * @param cb the callback to be invoked when the timeout expires
  * @param arg the argument to be passed to the callback
  */
-#define timeout_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
+#define timeout_set(ev, cb, arg)    event_set(ev, -1, 0, cb, arg)
 
 
 /**
@@ -538,17 +538,17 @@ int event_base_loopbreak(struct event_base *);
  *
  * @param ev the timeout event to be disabled
  */
-#define timeout_del(ev)			event_del(ev)
+#define timeout_del(ev)         event_del(ev)
 
-#define timeout_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
-#define timeout_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
+#define timeout_pending(ev, tv)     event_pending(ev, EV_TIMEOUT, tv)
+#define timeout_initialized(ev)     ((ev)->ev_flags & EVLIST_INIT)
 
-#define signal_add(ev, tv)		event_add(ev, tv)
-#define signal_set(ev, x, cb, arg)	\
-	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
-#define signal_del(ev)			event_del(ev)
-#define signal_pending(ev, tv)		event_pending(ev, EV_SIGNAL, tv)
-#define signal_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
+#define signal_add(ev, tv)      event_add(ev, tv)
+#define signal_set(ev, x, cb, arg)  \
+    event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+#define signal_del(ev)          event_del(ev)
+#define signal_pending(ev, tv)      event_pending(ev, EV_SIGNAL, tv)
+#define signal_initialized(ev)      ((ev)->ev_flags & EVLIST_INIT)
 
 /**
   Prepare an event structure to be added.
@@ -576,7 +576,7 @@ int event_base_loopbreak(struct event_base *);
   @see event_add(), event_del(), event_once()
 
  */
-void event_set(struct event *, int, short, void (*)(int, short, void *), void *);
+void event_set(struct event*, int, short, void (*)(int, short, void*), void*);
 
 /**
   Schedule a one-time event to occur.
@@ -596,8 +596,8 @@ void event_set(struct event *, int, short, void (*)(int, short, void *), void *)
   @see event_set()
 
  */
-int event_once(int, short, void (*)(int, short, void *), void *,
-    const struct timeval *);
+int event_once(int, short, void (*)(int, short, void*), void*,
+               const struct timeval*);
 
 
 /**
@@ -618,9 +618,9 @@ int event_once(int, short, void (*)(int, short, void *), void *,
   @return 0 if successful, or -1 if an error occurred
   @see event_once()
  */
-int event_base_once(struct event_base *base, int fd, short events,
-    void (*callback)(int, short, void *), void *arg,
-    const struct timeval *timeout);
+int event_base_once(struct event_base* base, int fd, short events,
+                    void (*callback)(int, short, void*), void* arg,
+                    const struct timeval* timeout);
 
 
 /**
@@ -641,7 +641,7 @@ int event_base_once(struct event_base *base, int fd, short events,
   @return 0 if successful, or -1 if an error occurred
   @see event_del(), event_set()
   */
-int event_add(struct event *ev, const struct timeval *timeout);
+int event_add(struct event* ev, const struct timeval* timeout);
 
 
 /**
@@ -655,9 +655,9 @@ int event_add(struct event *ev, const struct timeval *timeout);
   @return 0 if successful, or -1 if an error occurred
   @see event_add()
  */
-int event_del(struct event *);
+int event_del(struct event*);
 
-void event_active(struct event *, int, short);
+void event_active(struct event*, int, short);
 
 
 /**
@@ -671,7 +671,7 @@ void event_active(struct event *, int, short);
   @return 1 if the event is pending, or 0 if the event has not occurred
 
  */
-int event_pending(struct event *ev, short event, struct timeval *tv);
+int event_pending(struct event* ev, short event, struct timeval* tv);
 
 
 /**
@@ -685,9 +685,9 @@ int event_pending(struct event *ev, short event, struct timeval *tv);
           initialized
  */
 #ifdef WIN32
-#define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT && (ev)->ev_fd != (int)INVALID_HANDLE_VALUE)
+#define event_initialized(ev)       ((ev)->ev_flags & EVLIST_INIT && (ev)->ev_fd != (int)INVALID_HANDLE_VALUE)
 #else
-#define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
+#define event_initialized(ev)       ((ev)->ev_flags & EVLIST_INIT)
 #endif
 
 
@@ -696,7 +696,7 @@ int event_pending(struct event *ev, short event, struct timeval *tv);
 
   @return a string containing the version number of libevent
  */
-const char *event_get_version(void);
+const char* event_get_version(void);
 
 
 /**
@@ -704,7 +704,7 @@ const char *event_get_version(void);
 
   @return a string identifying the kernel event mechanism (kqueue, epoll, etc.)
  */
-const char *event_get_method(void);
+const char* event_get_method(void);
 
 
 /**
@@ -727,7 +727,7 @@ const char *event_get_method(void);
   @see event_base_priority_init(), event_priority_set()
 
  */
-int	event_priority_init(int);
+int event_priority_init(int);
 
 
 /**
@@ -740,7 +740,7 @@ int	event_priority_init(int);
   @return 0 if successful, or -1 if an error occurred
   @see event_priority_init(), event_priority_set()
  */
-int	event_base_priority_init(struct event_base *, int);
+int event_base_priority_init(struct event_base*, int);
 
 
 /**
@@ -751,70 +751,70 @@ int	event_base_priority_init(struct event_base *, int);
   @return 0 if successful, or -1 if an error occurred
   @see event_priority_init()
   */
-int	event_priority_set(struct event *, int);
+int event_priority_set(struct event*, int);
 
 
 /* These functions deal with buffering input and output */
 
 struct evbuffer {
     // 指向可用内存的起始 buffer >= orig_buffer
-	u_char *buffer;
+    u_char* buffer;
     // malloc分配的内存
-	u_char *orig_buffer;
+    u_char* orig_buffer;
 
-	size_t misalign;
+    size_t misalign;
     // malloc 分配的内存大小，即orig_buffer~orig_buffer+totallen部分
-	size_t totallen;
+    size_t totallen;
     // buffer内存的大小，buffer~buffer+off即为可用内存，存储可用的数据
-	size_t off;
+    size_t off;
 
     // 当buffer指针改变会被回到
-	void (*cb)(struct evbuffer *, size_t/*old原来内存大小*/, size_t/*new改变后新的内存大小*/, void *);
+    void (*cb)(struct evbuffer*, size_t/*old原来内存大小*/, size_t/*new改变后新的内存大小*/, void*);
     // 给cb的自定义函数
-	void *cbarg;
+    void* cbarg;
 };
 
 /* Just for error reporting - use other constants otherwise */
-#define EVBUFFER_READ		0x01
-#define EVBUFFER_WRITE		0x02
-#define EVBUFFER_EOF		0x10
-#define EVBUFFER_ERROR		0x20
-#define EVBUFFER_TIMEOUT	0x40
+#define EVBUFFER_READ       0x01
+#define EVBUFFER_WRITE      0x02
+#define EVBUFFER_EOF        0x10
+#define EVBUFFER_ERROR      0x20
+#define EVBUFFER_TIMEOUT    0x40
 
 struct bufferevent;
-typedef void (*evbuffercb)(struct bufferevent *, void *);
-typedef void (*everrorcb)(struct bufferevent *, short what, void *);
+typedef void (*evbuffercb)(struct bufferevent*, void*);
+typedef void (*everrorcb)(struct bufferevent*, short what, void*);
 
 struct event_watermark {
-	size_t low;
-	size_t high;
+    size_t low;
+    size_t high;
 };
 
 #ifndef EVENT_NO_STRUCT
 struct bufferevent {
-	struct event_base *ev_base;
+    struct event_base* ev_base;
 
-	struct event ev_read;
-	struct event ev_write;
+    struct event ev_read;
+    struct event ev_write;
 
-	struct evbuffer *input;
-	struct evbuffer *output;
+    struct evbuffer* input;
+    struct evbuffer* output;
     //read 的高水位表示如果读缓冲区大于此值就不在读
     //read 的低水位表示当缓冲区的值小于此值就开始读
-	struct event_watermark wm_read;
+    struct event_watermark wm_read;
     // write的高水位没用，低水位表示低于该值的时候，
     // 通知用户往这里继续写继续灌水
-	struct event_watermark wm_write;
+    struct event_watermark wm_write;
 
-	evbuffercb readcb;
-	evbuffercb writecb;
-	everrorcb errorcb;
-	void *cbarg;
+    evbuffercb readcb;
+    evbuffercb writecb;
+    everrorcb errorcb;
+    void* cbarg;
 
-	int timeout_read;	/* in seconds */
-	int timeout_write;	/* in seconds */
+    int timeout_read;   /* in seconds */
+    int timeout_write;  /* in seconds */
 
-	short enabled;	/* events that are currently enabled */
+    short enabled;  /* events that are currently enabled */
 };
 #endif
 
@@ -839,7 +839,7 @@ struct bufferevent {
   enabling the bufferevent for the first time.
 
   @param fd the file descriptor from which data is read and written to.
-  		This file descriptor is not allowed to be a pipe(2).
+        This file descriptor is not allowed to be a pipe(2).
   @param readcb callback to invoke when there is data to be read, or NULL if
          no callback is desired
   @param writecb callback to invoke when the file descriptor is ready for
@@ -852,8 +852,8 @@ struct bufferevent {
           error occurred
   @see bufferevent_base_set(), bufferevent_free()
   */
-struct bufferevent *bufferevent_new(int fd,
-    evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg);
+struct bufferevent* bufferevent_new(int fd,
+                                    evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void* cbarg);
 
 
 /**
@@ -864,7 +864,7 @@ struct bufferevent *bufferevent_new(int fd,
   @return 0 if successful, or -1 if an error occurred
   @see bufferevent_new()
  */
-int bufferevent_base_set(struct event_base *base, struct bufferevent *bufev);
+int bufferevent_base_set(struct event_base* base, struct bufferevent* bufev);
 
 
 /**
@@ -874,7 +874,7 @@ int bufferevent_base_set(struct event_base *base, struct bufferevent *bufev);
   @param pri the priority to be assigned
   @return 0 if successful, or -1 if an error occurred
   */
-int bufferevent_priority_set(struct bufferevent *bufev, int pri);
+int bufferevent_priority_set(struct bufferevent* bufev, int pri);
 
 
 /**
@@ -882,7 +882,7 @@ int bufferevent_priority_set(struct bufferevent *bufev, int pri);
 
   @param bufev the bufferevent structure to be freed.
   */
-void bufferevent_free(struct bufferevent *bufev);
+void bufferevent_free(struct bufferevent* bufev);
 
 
 /**
@@ -899,8 +899,8 @@ void bufferevent_free(struct bufferevent *bufev);
          (readcb, writecb, and errorcb)
   @see bufferevent_new()
   */
-void bufferevent_setcb(struct bufferevent *bufev,
-    evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg);
+void bufferevent_setcb(struct bufferevent* bufev,
+                       evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void* cbarg);
 
 /**
   Changes the file descriptor on which the bufferevent operates.
@@ -908,7 +908,7 @@ void bufferevent_setcb(struct bufferevent *bufev,
   @param bufev the bufferevent object for which to change the file descriptor
   @param fd the file descriptor to operate on
 */
-void bufferevent_setfd(struct bufferevent *bufev, int fd);
+void bufferevent_setfd(struct bufferevent* bufev, int fd);
 
 /**
   Write data to a bufferevent buffer.
@@ -923,8 +923,8 @@ void bufferevent_setfd(struct bufferevent *bufev, int fd);
   @return 0 if successful, or -1 if an error occurred
   @see bufferevent_write_buffer()
   */
-int bufferevent_write(struct bufferevent *bufev,
-    const void *data, size_t size);
+int bufferevent_write(struct bufferevent* bufev,
+                      const void* data, size_t size);
 
 
 /**
@@ -936,7 +936,7 @@ int bufferevent_write(struct bufferevent *bufev,
   @return 0 if successful, or -1 if an error occurred
   @see bufferevent_write()
  */
-int bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf);
+int bufferevent_write_buffer(struct bufferevent* bufev, struct evbuffer* buf);
 
 
 /**
@@ -949,7 +949,7 @@ int bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf);
   @param size the size of the data buffer, in bytes
   @return the amount of data read, in bytes.
  */
-size_t bufferevent_read(struct bufferevent *bufev, void *data, size_t size);
+size_t bufferevent_read(struct bufferevent* bufev, void* data, size_t size);
 
 /**
   Enable a bufferevent.
@@ -959,7 +959,7 @@ size_t bufferevent_read(struct bufferevent *bufev, void *data, size_t size);
   @return 0 if successful, or -1 if an error occurred
   @see bufferevent_disable()
  */
-int bufferevent_enable(struct bufferevent *bufev, short event);
+int bufferevent_enable(struct bufferevent* bufev, short event);
 
 
 /**
@@ -970,7 +970,7 @@ int bufferevent_enable(struct bufferevent *bufev, short event);
   @return 0 if successful, or -1 if an error occurred
   @see bufferevent_enable()
  */
-int bufferevent_disable(struct bufferevent *bufev, short event);
+int bufferevent_disable(struct bufferevent* bufev, short event);
 
 
 /**
@@ -980,8 +980,8 @@ int bufferevent_disable(struct bufferevent *bufev, short event);
   @param timeout_read the read timeout
   @param timeout_write the write timeout
  */
-void bufferevent_settimeout(struct bufferevent *bufev,
-    int timeout_read, int timeout_write);
+void bufferevent_settimeout(struct bufferevent* bufev,
+                            int timeout_read, int timeout_write);
 
 
 /**
@@ -1000,13 +1000,13 @@ void bufferevent_settimeout(struct bufferevent *bufev,
   @param highmark the high watermark to set
 */
 
-void bufferevent_setwatermark(struct bufferevent *bufev, short events,
-    size_t lowmark, size_t highmark);
+void bufferevent_setwatermark(struct bufferevent* bufev, short events,
+                              size_t lowmark, size_t highmark);
 
-#define EVBUFFER_LENGTH(x)	(x)->off
-#define EVBUFFER_DATA(x)	(x)->buffer
-#define EVBUFFER_INPUT(x)	(x)->input
-#define EVBUFFER_OUTPUT(x)	(x)->output
+#define EVBUFFER_LENGTH(x)  (x)->off
+#define EVBUFFER_DATA(x)    (x)->buffer
+#define EVBUFFER_INPUT(x)   (x)->input
+#define EVBUFFER_OUTPUT(x)  (x)->output
 
 
 /**
@@ -1015,7 +1015,7 @@ void bufferevent_setwatermark(struct bufferevent *bufev, short events,
   @return a pointer to a newly allocated evbuffer struct, or NULL if an error
           occurred
  */
-struct evbuffer *evbuffer_new(void);
+struct evbuffer* evbuffer_new(void);
 
 
 /**
@@ -1023,7 +1023,7 @@ struct evbuffer *evbuffer_new(void);
 
   @param pointer to the evbuffer to be freed
  */
-void evbuffer_free(struct evbuffer *);
+void evbuffer_free(struct evbuffer*);
 
 
 /**
@@ -1035,7 +1035,7 @@ void evbuffer_free(struct evbuffer *);
   @param datlen the new minimum length requirement
   @return 0 if successful, or -1 if an error occurred
 */
-int evbuffer_expand(struct evbuffer *, size_t);
+int evbuffer_expand(struct evbuffer*, size_t);
 
 
 /**
@@ -1045,7 +1045,7 @@ int evbuffer_expand(struct evbuffer *, size_t);
   @param data pointer to the beginning of the data buffer
   @param datlen the number of bytes to be copied from the data buffer
  */
-int evbuffer_add(struct evbuffer *, const void *, size_t);
+int evbuffer_add(struct evbuffer*, const void*, size_t);
 
 
 
@@ -1057,7 +1057,7 @@ int evbuffer_add(struct evbuffer *, const void *, size_t);
   @param datlen the maximum size of the destination buffer
   @return the number of bytes read
  */
-int evbuffer_remove(struct evbuffer *, void *, size_t);
+int evbuffer_remove(struct evbuffer*, void*, size_t);
 
 
 /**
@@ -1069,21 +1069,21 @@ int evbuffer_remove(struct evbuffer *, void *, size_t);
  * @param buffer the evbuffer to read from
  * @return pointer to a single line, or NULL if an error occurred
  */
-char *evbuffer_readline(struct evbuffer *);
+char* evbuffer_readline(struct evbuffer*);
 
 
 /** Used to tell evbuffer_readln what kind of line-ending to look for.
  */
 enum evbuffer_eol_style {
-	/** Any sequence of CR and LF characters is acceptable as an EOL. */
-	EVBUFFER_EOL_ANY,
-	/** An EOL is an LF, optionally preceded by a CR.  This style is
-	 * most useful for implementing text-based internet protocols. */
-	EVBUFFER_EOL_CRLF,
-	/** An EOL is a CR followed by an LF. */
-	EVBUFFER_EOL_CRLF_STRICT,
-	/** An EOL is a LF. */
-        EVBUFFER_EOL_LF
+    /** Any sequence of CR and LF characters is acceptable as an EOL. */
+    EVBUFFER_EOL_ANY,
+    /** An EOL is an LF, optionally preceded by a CR.  This style is
+     * most useful for implementing text-based internet protocols. */
+    EVBUFFER_EOL_CRLF,
+    /** An EOL is a CR followed by an LF. */
+    EVBUFFER_EOL_CRLF_STRICT,
+    /** An EOL is a LF. */
+    EVBUFFER_EOL_LF
 };
 
 /**
@@ -1100,8 +1100,8 @@ enum evbuffer_eol_style {
  * @param eol_style the style of line-ending to use.
  * @return pointer to a single line, or NULL if an error occurred
  */
-char *evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
-    enum evbuffer_eol_style eol_style);
+char* evbuffer_readln(struct evbuffer* buffer, size_t* n_read_out,
+                      enum evbuffer_eol_style eol_style);
 
 
 /**
@@ -1114,7 +1114,7 @@ char *evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
   @param inbuf the input buffer
   @return 0 if successful, or -1 if an error occurred
  */
-int evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
+int evbuffer_add_buffer(struct evbuffer*, struct evbuffer*);
 
 
 /**
@@ -1125,9 +1125,9 @@ int evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
   @param ... arguments that will be passed to printf(3)
   @return The number of bytes added if successful, or -1 if an error occurred.
  */
-int evbuffer_add_printf(struct evbuffer *, const char *fmt, ...)
+int evbuffer_add_printf(struct evbuffer*, const char* fmt, ...)
 #ifdef __GNUC__
-  __attribute__((format(printf, 2, 3)))
+__attribute__((format(printf, 2, 3)))
 #endif
 ;
 
@@ -1140,7 +1140,7 @@ int evbuffer_add_printf(struct evbuffer *, const char *fmt, ...)
   @param ap a varargs va_list argument array that will be passed to vprintf(3)
   @return The number of bytes added if successful, or -1 if an error occurred.
  */
-int evbuffer_add_vprintf(struct evbuffer *, const char *fmt, va_list ap);
+int evbuffer_add_vprintf(struct evbuffer*, const char* fmt, va_list ap);
 
 
 /**
@@ -1149,7 +1149,7 @@ int evbuffer_add_vprintf(struct evbuffer *, const char *fmt, va_list ap);
   @param buf the evbuffer to be drained
   @param len the number of bytes to drain from the beginning of the buffer
  */
-void evbuffer_drain(struct evbuffer *, size_t);
+void evbuffer_drain(struct evbuffer*, size_t);
 
 
 /**
@@ -1162,7 +1162,7 @@ void evbuffer_drain(struct evbuffer *, size_t);
   @return the number of bytes written, or -1 if an error occurred
   @see evbuffer_read()
  */
-int evbuffer_write(struct evbuffer *, int);
+int evbuffer_write(struct evbuffer*, int);
 
 
 /**
@@ -1174,7 +1174,7 @@ int evbuffer_write(struct evbuffer *, int);
   @return the number of bytes read, or -1 if an error occurred
   @see evbuffer_write()
  */
-int evbuffer_read(struct evbuffer *, int, int);
+int evbuffer_read(struct evbuffer*, int, int);
 
 
 /**
@@ -1185,7 +1185,7 @@ int evbuffer_read(struct evbuffer *, int, int);
   @param len the length of the search string
   @return a pointer to the beginning of the search string, or NULL if the search failed.
  */
-u_char *evbuffer_find(struct evbuffer *, const u_char *, size_t);
+u_char* evbuffer_find(struct evbuffer*, const u_char*, size_t);
 
 /**
   Set a callback to invoke when the evbuffer is modified.
@@ -1194,7 +1194,7 @@ u_char *evbuffer_find(struct evbuffer *, const u_char *, size_t);
   @param cb the callback function to invoke when the evbuffer is modified
   @param cbarg an argument to be provided to the callback function
  */
-void evbuffer_setcb(struct evbuffer *, void (*)(struct evbuffer *, size_t, size_t, void *), void *);
+void evbuffer_setcb(struct evbuffer*, void (*)(struct evbuffer*, size_t, size_t, void*), void*);
 
 /*
  * Marshaling tagged data - We assume that all tags are inserted in their
@@ -1204,8 +1204,8 @@ void evbuffer_setcb(struct evbuffer *, void (*)(struct evbuffer *, size_t, size_
 
 void evtag_init(void);
 
-void evtag_marshal(struct evbuffer *evbuf, ev_uint32_t tag, const void *data,
-    ev_uint32_t len);
+void evtag_marshal(struct evbuffer* evbuf, ev_uint32_t tag, const void* data,
+                   ev_uint32_t len);
 
 /**
   Encode an integer and store it in an evbuffer.
@@ -1217,35 +1217,35 @@ void evtag_marshal(struct evbuffer *evbuf, ev_uint32_t tag, const void *data,
   @param evbuf evbuffer to store the encoded number
   @param number a 32-bit integer
  */
-void encode_int(struct evbuffer *evbuf, ev_uint32_t number);
+void encode_int(struct evbuffer* evbuf, ev_uint32_t number);
 
-void evtag_marshal_int(struct evbuffer *evbuf, ev_uint32_t tag,
-    ev_uint32_t integer);
+void evtag_marshal_int(struct evbuffer* evbuf, ev_uint32_t tag,
+                       ev_uint32_t integer);
 
-void evtag_marshal_string(struct evbuffer *buf, ev_uint32_t tag,
-    const char *string);
+void evtag_marshal_string(struct evbuffer* buf, ev_uint32_t tag,
+                          const char* string);
 
-void evtag_marshal_timeval(struct evbuffer *evbuf, ev_uint32_t tag,
-    struct timeval *tv);
+void evtag_marshal_timeval(struct evbuffer* evbuf, ev_uint32_t tag,
+                           struct timeval* tv);
 
-int evtag_unmarshal(struct evbuffer *src, ev_uint32_t *ptag,
-    struct evbuffer *dst);
-int evtag_peek(struct evbuffer *evbuf, ev_uint32_t *ptag);
-int evtag_peek_length(struct evbuffer *evbuf, ev_uint32_t *plength);
-int evtag_payload_length(struct evbuffer *evbuf, ev_uint32_t *plength);
-int evtag_consume(struct evbuffer *evbuf);
+int evtag_unmarshal(struct evbuffer* src, ev_uint32_t* ptag,
+                    struct evbuffer* dst);
+int evtag_peek(struct evbuffer* evbuf, ev_uint32_t* ptag);
+int evtag_peek_length(struct evbuffer* evbuf, ev_uint32_t* plength);
+int evtag_payload_length(struct evbuffer* evbuf, ev_uint32_t* plength);
+int evtag_consume(struct evbuffer* evbuf);
 
-int evtag_unmarshal_int(struct evbuffer *evbuf, ev_uint32_t need_tag,
-    ev_uint32_t *pinteger);
+int evtag_unmarshal_int(struct evbuffer* evbuf, ev_uint32_t need_tag,
+                        ev_uint32_t* pinteger);
 
-int evtag_unmarshal_fixed(struct evbuffer *src, ev_uint32_t need_tag,
-    void *data, size_t len);
+int evtag_unmarshal_fixed(struct evbuffer* src, ev_uint32_t need_tag,
+                          void* data, size_t len);
 
-int evtag_unmarshal_string(struct evbuffer *evbuf, ev_uint32_t need_tag,
-    char **pstring);
+int evtag_unmarshal_string(struct evbuffer* evbuf, ev_uint32_t need_tag,
+                           char** pstring);
 
-int evtag_unmarshal_timeval(struct evbuffer *evbuf, ev_uint32_t need_tag,
-    struct timeval *ptv);
+int evtag_unmarshal_timeval(struct evbuffer* evbuf, ev_uint32_t need_tag,
+                            struct timeval* ptv);
 
 #ifdef __cplusplus
 }

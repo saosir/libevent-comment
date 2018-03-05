@@ -38,7 +38,7 @@
  *
  * I ask and expect, but do not require, that all derivative works contain an
  * attribution similar to:
- * 	Parts developed by Adam Langley <agl@imperialviolet.org>
+ *  Parts developed by Adam Langley <agl@imperialviolet.org>
  *
  * You may wish to replace the word "Parts" with something else depending on
  * the amount of original code.
@@ -89,7 +89,7 @@
  * Quick start guide:
  *   #include "evdns.h"
  *   void callback(int result, char type, int count, int ttl,
- *		 void *addresses, void *arg);
+ *       void *addresses, void *arg);
  *   evdns_resolv_conf_parse(DNS_OPTIONS_ALL, "/etc/resolv.conf");
  *   evdns_resolve("www.hostname.com", 0, callback, NULL);
  *
@@ -208,7 +208,7 @@ extern "C" {
  * - ttl is the number of seconds the resolution may be cached for.
  * - addresses needs to be cast according to type
  */
-typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, void *addresses, void *arg);
+typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, void* addresses, void* arg);
 
 /**
   Initialize the asynchronous DNS library.
@@ -231,7 +231,7 @@ int evdns_init(void);
   the requests will be silently discarded.
 
   @param fail_requests if zero, active requests will be aborted; if non-zero,
-		active requests will return DNS_ERR_SHUTDOWN.
+        active requests will return DNS_ERR_SHUTDOWN.
   @see evdns_init()
  */
 void evdns_shutdown(int fail_requests);
@@ -243,7 +243,7 @@ void evdns_shutdown(int fail_requests);
   @param err the DNS error code
   @return a string containing an explanation of the error code
 */
-const char *evdns_err_to_string(int err);
+const char* evdns_err_to_string(int err);
 
 
 /**
@@ -305,7 +305,7 @@ int evdns_resume(void);
   @return 0 if successful, or -1 if an error occurred
   @see evdns_nameserver_add()
  */
-int evdns_nameserver_ip_add(const char *ip_as_string);
+int evdns_nameserver_ip_add(const char* ip_as_string);
 
 
 /**
@@ -318,7 +318,7 @@ int evdns_nameserver_ip_add(const char *ip_as_string);
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_ipv6(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
  */
-int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback, void *ptr);
+int evdns_resolve_ipv4(const char* name, int flags, evdns_callback_type callback, void* ptr);
 
 
 /**
@@ -331,7 +331,7 @@ int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
  */
-int evdns_resolve_ipv6(const char *name, int flags, evdns_callback_type callback, void *ptr);
+int evdns_resolve_ipv6(const char* name, int flags, evdns_callback_type callback, void* ptr);
 
 struct in_addr;
 struct in6_addr;
@@ -346,7 +346,7 @@ struct in6_addr;
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_reverse_ipv6()
  */
-int evdns_resolve_reverse(const struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
+int evdns_resolve_reverse(const struct in_addr* in, int flags, evdns_callback_type callback, void* ptr);
 
 
 /**
@@ -359,7 +359,7 @@ int evdns_resolve_reverse(const struct in_addr *in, int flags, evdns_callback_ty
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_reverse_ipv6()
  */
-int evdns_resolve_reverse_ipv6(const struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
+int evdns_resolve_reverse_ipv6(const struct in6_addr* in, int flags, evdns_callback_type callback, void* ptr);
 
 
 /**
@@ -374,7 +374,7 @@ int evdns_resolve_reverse_ipv6(const struct in6_addr *in, int flags, evdns_callb
   @param flags either 0 | DNS_OPTION_SEARCH | DNS_OPTION_MISC
   @return 0 if successful, or -1 if an error occurred
  */
-int evdns_set_option(const char *option, const char *val, int flags);
+int evdns_set_option(const char* option, const char* val, int flags);
 
 
 /**
@@ -398,7 +398,7 @@ int evdns_set_option(const char *option, const char *val, int flags);
           occurred (see above)
   @see resolv.conf(3), evdns_config_windows_nameservers()
  */
-int evdns_resolv_conf_parse(int flags, const char *const filename);
+int evdns_resolv_conf_parse(int flags, const char* const filename);
 
 
 /**
@@ -427,7 +427,7 @@ void evdns_search_clear(void);
 
   @param domain the domain to be added to the search list
  */
-void evdns_search_add(const char *domain);
+void evdns_search_add(const char* domain);
 
 
 /**
@@ -446,7 +446,7 @@ void evdns_search_ndots_set(const int ndots);
   @param is_warning indicates if the log message is a 'warning'
   @param msg the content of the log message
  */
-typedef void (*evdns_debug_log_fn_type)(int is_warning, const char *msg);
+typedef void (*evdns_debug_log_fn_type)(int is_warning, const char* msg);
 
 
 /**
@@ -471,55 +471,55 @@ void evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void));
  */
 
 struct evdns_server_request {
-	int flags;
-	int nquestions;
-	struct evdns_server_question **questions;
+    int flags;
+    int nquestions;
+    struct evdns_server_question** questions;
 };
 struct evdns_server_question {
-	int type;
+    int type;
 #ifdef __cplusplus
-	int dns_question_class;
+        int dns_question_class;
 #else
-	/* You should refer to this field as "dns_question_class".  The
-	 * name "class" works in C for backward compatibility, and will be
-	 * removed in a future version. (1.5 or later). */
-	int class;
+        /* You should refer to this field as "dns_question_class".  The
+         * name "class" works in C for backward compatibility, and will be
+         * removed in a future version. (1.5 or later). */
+        int class;
 #define dns_question_class class
 #endif
-	char name[1];
-};
-typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, void *);
+        char name[1];
+    };
+    typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request*, void*);
 #define EVDNS_ANSWER_SECTION 0
 #define EVDNS_AUTHORITY_SECTION 1
 #define EVDNS_ADDITIONAL_SECTION 2
 
-#define EVDNS_TYPE_A	   1
-#define EVDNS_TYPE_NS	   2
+#define EVDNS_TYPE_A       1
+#define EVDNS_TYPE_NS      2
 #define EVDNS_TYPE_CNAME   5
-#define EVDNS_TYPE_SOA	   6
-#define EVDNS_TYPE_PTR	  12
-#define EVDNS_TYPE_MX	  15
-#define EVDNS_TYPE_TXT	  16
-#define EVDNS_TYPE_AAAA	  28
+#define EVDNS_TYPE_SOA     6
+#define EVDNS_TYPE_PTR    12
+#define EVDNS_TYPE_MX     15
+#define EVDNS_TYPE_TXT    16
+#define EVDNS_TYPE_AAAA   28
 
 #define EVDNS_QTYPE_AXFR 252
-#define EVDNS_QTYPE_ALL	 255
+#define EVDNS_QTYPE_ALL  255
 
 #define EVDNS_CLASS_INET   1
 
-struct evdns_server_port *evdns_add_server_port(int socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
-void evdns_close_server_port(struct evdns_server_port *port);
+    struct evdns_server_port* evdns_add_server_port(int socket, int is_tcp, evdns_request_callback_fn_type callback, void* user_data);
+    void evdns_close_server_port(struct evdns_server_port* port);
 
-int evdns_server_request_add_reply(struct evdns_server_request *req, int section, const char *name, int type, int dns_class, int ttl, int datalen, int is_name, const char *data);
-int evdns_server_request_add_a_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl);
-int evdns_server_request_add_aaaa_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl);
-int evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_addr *in, const char *inaddr_name, const char *hostname, int ttl);
-int evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl);
+    int evdns_server_request_add_reply(struct evdns_server_request* req, int section, const char* name, int type, int dns_class, int ttl, int datalen, int is_name, const char* data);
+    int evdns_server_request_add_a_reply(struct evdns_server_request* req, const char* name, int n, void* addrs, int ttl);
+    int evdns_server_request_add_aaaa_reply(struct evdns_server_request* req, const char* name, int n, void* addrs, int ttl);
+    int evdns_server_request_add_ptr_reply(struct evdns_server_request* req, struct in_addr* in, const char* inaddr_name, const char* hostname, int ttl);
+    int evdns_server_request_add_cname_reply(struct evdns_server_request* req, const char* name, const char* cname, int ttl);
 
-int evdns_server_request_respond(struct evdns_server_request *req, int err);
-int evdns_server_request_drop(struct evdns_server_request *req);
-struct sockaddr;
-int evdns_server_request_get_requesting_addr(struct evdns_server_request *_req, struct sockaddr *sa, int addr_len);
+    int evdns_server_request_respond(struct evdns_server_request* req, int err);
+    int evdns_server_request_drop(struct evdns_server_request* req);
+    struct sockaddr;
+    int evdns_server_request_get_requesting_addr(struct evdns_server_request* _req, struct sockaddr* sa, int addr_len);
 
 #ifdef __cplusplus
 }
