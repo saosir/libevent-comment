@@ -182,34 +182,34 @@ typedef unsigned char u_char;
 typedef unsigned short u_short;
 #endif
 
-//¸øevente->ev_flagsÊ¹ÓÃ£¬±êÊ¶Ä³¸öeventÒÑ¾­²åÈëÄ³¶ÓÁĞ
+//ç»™evente->ev_flagsä½¿ç”¨ï¼Œæ ‡è¯†æŸä¸ªeventå·²ç»æ’å…¥æŸé˜Ÿåˆ—
 
-// ¼ÆÊ±Æ÷£¬event_baseÖĞµÄtimeheap×îĞ¡¶Ñ
+// è®¡æ—¶å™¨ï¼Œevent_baseä¸­çš„timeheapæœ€å°å †
 #define EVLIST_TIMEOUT  0x01
-// event_loop£¬ÕâÊÇÒ»¸ö×ÜµÄ¶ÓÁĞ£¬event_baseÖĞµÄeventqueue
+// event_loopï¼Œè¿™æ˜¯ä¸€ä¸ªæ€»çš„é˜Ÿåˆ—ï¼Œevent_baseä¸­çš„eventqueue
 #define EVLIST_INSERTED 0x02
-// ĞÅºÅ£¬event_baseµÄsig
+// ä¿¡å·ï¼Œevent_baseçš„sig
 #define EVLIST_SIGNAL   0x04
-// »î¶¯¶ÓÁĞ£¬²åÈëÕâ¸öÁ´±íËµÃ÷¼´½«±»»Øµ÷£¬
-// event_baseÖĞµÄactivequeues£¬ÓĞÓÅÏÈ¼¶´óĞ¡
+// æ´»åŠ¨é˜Ÿåˆ—ï¼Œæ’å…¥è¿™ä¸ªé“¾è¡¨è¯´æ˜å³å°†è¢«å›è°ƒï¼Œ
+// event_baseä¸­çš„activequeuesï¼Œæœ‰ä¼˜å…ˆçº§å¤§å°
 #define EVLIST_ACTIVE   0x08
-// ĞÅºÅÊÂ¼ş¾ÍÊÇÒ»¸öÄÚ²¿event£¬ÓÃÓÚ×¨ÃÅ´¦ÀíĞÅºÅ»Øµ÷
+// ä¿¡å·äº‹ä»¶å°±æ˜¯ä¸€ä¸ªå†…éƒ¨eventï¼Œç”¨äºä¸“é—¨å¤„ç†ä¿¡å·å›è°ƒ
 #define EVLIST_INTERNAL 0x10
-// ³õÊ¼»¯µÄÊ±ºòÓÃµÄ
+// åˆå§‹åŒ–çš„æ—¶å€™ç”¨çš„
 #define EVLIST_INIT 0x80
 
 /* EVLIST_X_ Private space: 0x1000-0xf000 */
 #define EVLIST_ALL  (0xf000 | 0x9f)
 
-// Ê±¼äÀàĞÍ£¬Ìí¼Óeventµ½event_loopµÄÊ±ºò£¬ÓÃ»§Í¨¹ıÏÂÃæµÄ
-// ºêÖ¸¶¨¸ÃeventÊÇÊ²Ã´ÊÂ¼şÀàĞÍ
+// æ—¶é—´ç±»å‹ï¼Œæ·»åŠ eventåˆ°event_loopçš„æ—¶å€™ï¼Œç”¨æˆ·é€šè¿‡ä¸‹é¢çš„
+// å®æŒ‡å®šè¯¥eventæ˜¯ä»€ä¹ˆäº‹ä»¶ç±»å‹
 #define EV_TIMEOUT  0x01
 #define EV_READ     0x02
 #define EV_WRITE    0x04
 #define EV_SIGNAL   0x08
-// ÓĞÕâ¸ö±êÖ¾ËµÃ÷¸ÃeventÊÇÓÀ¾ÃµÄ£¬ĞèÒªÑ­»·²åÈë£¬±ÈÈç
-// ÓÃÓÚ¼ÆÊ±Æ÷£¬Ò»°ã¼ÆÊ±Æ÷»Øµ÷Ò»´Î»á±»´Óevent_loopÉ¾³ı£¬
-// ÓĞÕâ¸ö±êÖ¾¾Í»áÒ»Ö±·Åµ½event_loopÖĞ
+// æœ‰è¿™ä¸ªæ ‡å¿—è¯´æ˜è¯¥eventæ˜¯æ°¸ä¹…çš„ï¼Œéœ€è¦å¾ªç¯æ’å…¥ï¼Œæ¯”å¦‚
+// ç”¨äºè®¡æ—¶å™¨ï¼Œä¸€èˆ¬è®¡æ—¶å™¨å›è°ƒä¸€æ¬¡ä¼šè¢«ä»event_loopåˆ é™¤ï¼Œ
+// æœ‰è¿™ä¸ªæ ‡å¿—å°±ä¼šä¸€ç›´æ”¾åˆ°event_loopä¸­
 #define EV_PERSIST  0x10    /* Persistant event */
 
 /* Fix so that ppl dont have to run with <sys/queue.h> */
@@ -224,44 +224,45 @@ struct {                                \
 
 struct event_base;
 #ifndef EVENT_NO_STRUCT
-//eventÖĞÓĞÈı¸öÁ´±í½Úµã£¬ÓÃÓÚ²åÈëµ½event_baseºÍsingnal_info.listÖĞ
-//¸ÃÁ´±íÊµÏÖ¿ÉÒÔ²Î¿´queue.h£¬ÊµÏÖµÃ·Ç³£¾«ÇÉ,¶ÔÓÚÀí½âºóĞø´úÂëºÜÓĞ°ïÖú
+//eventç»“æ„ä½“æœ‰ä¸‰ä¸ªé“¾è¡¨èŠ‚ç‚¹ï¼Œç”¨äºé“¾æ¥åˆ°event_baseå’Œsingnal_info.listä¸­
+//é“¾è¡¨å®ç°å¯ä»¥å‚çœ‹queue.hï¼Œå…¨éƒ¨é€šè¿‡å®æ¥å®ç°ï¼Œç†è§£åå¯¹åé¢æºç é˜…è¯»æœ‰å¸®åŠ©
 struct event {
-    //ËùÓĞÒÑ×¢²áµ½event_loopµÄ½Úµã
+    // äº‹ä»¶é˜Ÿåˆ— é“¾æ¥åˆ°event_base.eventqueue
     TAILQ_ENTRY (event) ev_next;
-    // »î¶¯ ¶ÓÁĞ½Úµã
+    // activeé˜Ÿåˆ— é“¾æ¥åˆ°event_base.activequeues
     TAILQ_ENTRY (event) ev_active_next; //active list
-    // ĞÅºÅ¶ÓÁĞ½Úµã
+    // ä¿¡å·é˜Ÿåˆ— é“¾æ¥åˆ°event_base.sig.evsigevents
     TAILQ_ENTRY (event) ev_signal_next; //singnal list
-    // ×îĞ¡¶Ñ,±êÊ¶×Ô¼ºÔÚ¶ÑÖĞµÄÎ»ÖÃ
+    // æœ€å°å †ä¸‹æ ‡ å­˜å‚¨åœ¨event_base.timeheap
     unsigned int min_heap_idx;  /* for managing timeouts*/
 
-    //Ö¸Ïò¹ÜÀí×Ô¼ºµÄevent_base£¬¼´¹éÊôÓÚÄÄ¸öevent_loop
+    //æŒ‡å‘æ‰€å±çš„äº‹ä»¶å¾ªç¯event_base
     struct event_base* ev_base;
 
-    //¹ØÁªµÄÎÄ¼şÃèÊö·û,timeout event±»ºöÂÔ
+    //å…³è”çš„æ–‡ä»¶æè¿°ç¬¦
     int ev_fd;
-    //¼àÌıµÄÀàĞÍ
+    //ç›‘å¬çš„ç±»å‹
     short ev_events;
-    //²åÈëactiveÖ®ºóÒª±»µ÷ÓÃµÄ´ÎÊı
+    //åŠ å…¥activeé˜Ÿåˆ—ä¹‹åè¦è¢«è°ƒç”¨çš„æ¬¡æ•°
     short ev_ncalls;
-    //Í¨¹ı¸Ã±äÁ¿¿ÉÒÔÔÚµ÷ÓÃ¹ı³ÌÖĞÉ¾³ı£¬ÒòÎª
-    // ÓĞĞ©event»áÔÚ»Øµ÷º¯ÊıÖĞÉ¾³ı×Ô¼º£¬Ê¹ÓÃ
-    // ¸Ã±äÁ¿¾ÍÊÇÎªÁË·ÀÖ¹ÕâÖÖÇé¿ö£¬ÈÃevent¿ÉÒÔ
-    // ÕıÈ·µÄ½«×Ô¼º´Óevent_loopÖĞÉ¾³ı
+    //é€šè¿‡è¯¥å˜é‡å¯ä»¥åœ¨è°ƒç”¨è¿‡ç¨‹ä¸­åˆ é™¤ï¼Œå› ä¸º
+    // æœ‰äº›eventä¼šåœ¨å›è°ƒå‡½æ•°ä¸­åˆ é™¤è‡ªå·±ï¼Œä½¿ç”¨
+    // è¯¥å˜é‡å°±æ˜¯ä¸ºäº†é˜²æ­¢è¿™ç§æƒ…å†µï¼Œè®©eventå¯ä»¥
+    // æ­£ç¡®çš„å°†è‡ªå·±ä»event_loopä¸­åˆ é™¤
     short* ev_pncalls;  /* Allows deletes in callback */
 
-    //³¬Ê±µÄÊ±¼äÓëmin_heap_idxÅäºÏÊ¹ÓÃ£¬ÓÃÓÚ¶ş²æ¶ÑÅÅĞò
+    //è¶…æ—¶çš„æ—¶é—´ä¸min_heap_idxé…åˆä½¿ç”¨ï¼Œç”¨äºäºŒå‰å †æ’åº
     struct timeval ev_timeout;
-    /* ÓÅÏÈ¼¶£¬ÊÂ¼ş·¢Éú¼´½«±»»Øµ÷Ê±²åÈëev_base->activequeues[ev_pri]ÖĞ£¬Ô½Ğ¡ÓÅÏÈ¼¶Ô½¸ß*/
+    /* ä¼˜å…ˆçº§ï¼Œäº‹ä»¶è§¦å‘åæ ¹æ®ä¼˜å…ˆçº§æ”¾å…¥ä¸åŒactiveé˜Ÿåˆ—event_base.activequeues[ev_pri]ä¸­ï¼Œev_priè¶Šå°ä¼˜å…ˆçº§è¶Šé«˜*/
     int ev_pri;
 
-    //Ö¸¶¨µÄ»Øµ÷º¯ÊıÓë²ÎÊı
+    //æŒ‡å®šçš„å›è°ƒå‡½æ•°ä¸å‚æ•°
     void (*ev_callback)(int, short, void* arg);
     void* ev_arg;
-    // ÔÚ»î¶¯¶ÓÁĞ±»»Øµ÷µÄÊ±ºò£¬¸Ã±äÁ¿ËµÃ÷·¢ÉúÁËÊ²Ã´ÊÂ¼ş£¬event resultµÄ¼ò³Æ
+    
+    // åœ¨æ´»åŠ¨é˜Ÿåˆ—è¢«å›è°ƒçš„æ—¶å€™ï¼Œè¯¥å˜é‡è¯´æ˜å‘ç”Ÿäº†ä»€ä¹ˆäº‹ä»¶ï¼Œevent resultçš„ç®€ç§°
     int ev_res;     /* result passed to event callback */
-    //±êÖ¾Î»£¬±êÖ¾¸ÃeventÒÑ¾­±»²åÈëÄÄ¼¸¸öÁ´±íÖĞ,ÎªEVLIST_*µÄ¶àÖÖ×éºÏ
+    //æ ‡å¿—ä½ï¼Œæ ‡å¿—è¯¥eventå·²ç»è¢«æ’å…¥å“ªå‡ ä¸ªé“¾è¡¨ä¸­,ä¸ºEVLIST_*çš„å¤šç§ç»„åˆ
     int ev_flags;
 };
 #else
@@ -393,9 +394,9 @@ int event_base_set(struct event_base*, struct event*);
  event_loop() flags
  */
 /*@{*/
-// Ö»Ñ­»·Ò»´Î
+// åªå¾ªç¯ä¸€æ¬¡
 #define EVLOOP_ONCE 0x01    /**< Block at most once. */
-// ²»×èÈû£¬Ò²¾ÍÊÇ²»»á¼ÆËã¾àÀë¼ÆÊ±Æ÷×îĞ¡´¥·¢Ê±¼ä½øĞĞË¯Ãß
+// ä¸é˜»å¡ï¼Œä¹Ÿå°±æ˜¯ä¸ä¼šè®¡ç®—è·ç¦»è®¡æ—¶å™¨æœ€å°è§¦å‘æ—¶é—´è¿›è¡Œç¡çœ 
 #define EVLOOP_NONBLOCK 0x02    /**< Do not block. */
 /*@}*/
 
@@ -757,20 +758,20 @@ int event_priority_set(struct event*, int);
 /* These functions deal with buffering input and output */
 
 struct evbuffer {
-    // Ö¸Ïò¿ÉÓÃÄÚ´æµÄÆğÊ¼ buffer >= orig_buffer
+    // æŒ‡å‘å¯ç”¨å†…å­˜çš„èµ·å§‹ buffer >= orig_buffer
     u_char* buffer;
-    // malloc·ÖÅäµÄÄÚ´æ
+    // mallocåˆ†é…çš„å†…å­˜
     u_char* orig_buffer;
 
     size_t misalign;
-    // malloc ·ÖÅäµÄÄÚ´æ´óĞ¡£¬¼´orig_buffer~orig_buffer+totallen²¿·Ö
+    // malloc åˆ†é…çš„å†…å­˜å¤§å°ï¼Œå³orig_buffer~orig_buffer+totallenéƒ¨åˆ†
     size_t totallen;
-    // bufferÄÚ´æµÄ´óĞ¡£¬buffer~buffer+off¼´Îª¿ÉÓÃÄÚ´æ£¬´æ´¢¿ÉÓÃµÄÊı¾İ
+    // bufferå†…å­˜çš„å¤§å°ï¼Œbuffer~buffer+offå³ä¸ºå¯ç”¨å†…å­˜ï¼Œå­˜å‚¨å¯ç”¨çš„æ•°æ®
     size_t off;
 
-    // µ±bufferÖ¸Õë¸Ä±ä»á±»»Øµ½
-    void (*cb)(struct evbuffer*, size_t/*oldÔ­À´ÄÚ´æ´óĞ¡*/, size_t/*new¸Ä±äºóĞÂµÄÄÚ´æ´óĞ¡*/, void*);
-    // ¸øcbµÄ×Ô¶¨Òåº¯Êı
+    // å½“bufferæŒ‡é’ˆæ”¹å˜ä¼šè¢«å›åˆ°
+    void (*cb)(struct evbuffer*, size_t/*oldåŸæ¥å†…å­˜å¤§å°*/, size_t/*newæ”¹å˜åæ–°çš„å†…å­˜å¤§å°*/, void*);
+    // ç»™cbçš„è‡ªå®šä¹‰å‡½æ•°
     void* cbarg;
 };
 
@@ -799,11 +800,11 @@ struct bufferevent {
 
     struct evbuffer* input;
     struct evbuffer* output;
-    //read µÄ¸ßË®Î»±íÊ¾Èç¹û¶Á»º³åÇø´óÓÚ´ËÖµ¾Í²»ÔÚ¶Á
-    //read µÄµÍË®Î»±íÊ¾µ±»º³åÇøµÄÖµĞ¡ÓÚ´ËÖµ¾Í¿ªÊ¼¶Á
+    //read çš„é«˜æ°´ä½è¡¨ç¤ºå¦‚æœè¯»ç¼“å†²åŒºå¤§äºæ­¤å€¼å°±ä¸åœ¨è¯»
+    //read çš„ä½æ°´ä½è¡¨ç¤ºå½“ç¼“å†²åŒºçš„å€¼å°äºæ­¤å€¼å°±å¼€å§‹è¯»
     struct event_watermark wm_read;
-    // writeµÄ¸ßË®Î»Ã»ÓÃ£¬µÍË®Î»±íÊ¾µÍÓÚ¸ÃÖµµÄÊ±ºò£¬
-    // Í¨ÖªÓÃ»§ÍùÕâÀï¼ÌĞøĞ´¼ÌĞø¹àË®
+    // writeçš„é«˜æ°´ä½æ²¡ç”¨ï¼Œä½æ°´ä½è¡¨ç¤ºä½äºè¯¥å€¼çš„æ—¶å€™ï¼Œ
+    // é€šçŸ¥ç”¨æˆ·å¾€è¿™é‡Œç»§ç»­å†™ç»§ç»­çŒæ°´
     struct event_watermark wm_write;
 
     evbuffercb readcb;

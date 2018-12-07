@@ -30,34 +30,34 @@
 typedef void (*ev_sighandler_t)(int);
 
 struct evsignal_info {
-    // ÕâÊÇÒ»¸öÄÚ²¿event£¬EVLIST_INTERNAL EV_PERSIST
+    // EVLIST_INTERNAL EV_PERSIST
     struct event ev_signal;
-    // ev_signal_pair[0]·ÅÈëevent_loopÖĞ¼àÌı£¬µ±ÓĞĞÅºÅ·¢ÉúµÄÊ±ºò£¬
-    // Í¨¹ıĞ´Èëev_signal_pair[1]£¬¿ÉÒÔ»½ĞÑ²¢»Øµ÷Óëev_signal_pair[0]¹ØÁª
-    // µÄÊÂ¼ş»Øµ÷£¬ÕâÑùµÄ×÷ÓÃÊÇ¿ÉÒÔÈÃËùÓĞ»Øµ÷ÔÚevent_loopÖĞ
-    // Ö´ĞĞ£¬²»ÓÃµ£ĞÄÖĞ¶ÏÎÊÌâ£¬Í¬Ê±ÓĞ¶à¸öĞÅºÅ·¢ÉúµÄÊ±ºò£¬
-    // ´¦Àí¸ü¿ì£¬ÒòÎªÖ»ĞèÒªÍùev_signal_pair[1]Ğ´ÈëÒ»¸ö×Ö½Ú½øĞĞ
-    // Í¨Öª¼´¿É£¬memcacheÔ´ÂëÖĞmasterÏß³Ì»½ĞÑworkerÏß³Ì´¦Àí¿Í»§
-    // ¿Í»§Á¬½ÓÒ²ÊÇÕâÃ´×ö
+    // ev_signal_pair[1]ä½œä¸ºreadæ”¾å…¥äº‹ä»¶å¾ªç¯ä¸­ç›‘å¬ï¼Œå½“æœ‰ä¿¡å·å‘ç”Ÿçš„æ—¶å€™ï¼Œ
+    // é€šè¿‡å†™å…¥ev_signal_pair[0]ï¼Œå¯ä»¥å”¤é†’å¹¶å›è°ƒä¸ev_signal_pair[1]å…³è”
+    // çš„äº‹ä»¶å›è°ƒï¼Œè¿™æ ·çš„ä½œç”¨æ˜¯å¯ä»¥è®©æ‰€æœ‰å›è°ƒåœ¨äº‹ä»¶å¾ªç¯ä¸­
+    // æ‰§è¡Œï¼Œä¸ç”¨æ‹…å¿ƒä¸­æ–­é—®é¢˜ï¼ŒåŒæ—¶æœ‰å¤šä¸ªä¿¡å·å‘ç”Ÿçš„æ—¶å€™ï¼Œ
+    // å¤„ç†æ›´å¿«ï¼Œå› ä¸ºåªéœ€è¦å¾€ev_signal_pair[1]å†™å…¥ä¸€ä¸ªå­—èŠ‚è¿›è¡Œ
+    // é€šçŸ¥å³å¯ï¼Œmemcacheæºç ä¸­masterçº¿ç¨‹å”¤é†’workerçº¿ç¨‹å¤„ç†å®¢æˆ·
+    // å®¢æˆ·è¿æ¥ä¹Ÿæ˜¯è¿™ä¹ˆåš
     int ev_signal_pair[2];
-    // ev_signalÊÇ·ñÒÑ¾­·ÅÈëevent loopµ±ÖĞ
+    // ev_signalæ˜¯å¦å·²ç»æ”¾å…¥event loopå½“ä¸­
     int ev_signal_added;
-    // ±íÊ¾ÒÑ¾­²¶×½µ½ĞÅºÅ£¬²»¹ÜÊ²Ã´ĞÅºÅ
+    // è¡¨ç¤ºå·²ç»æ•æ‰åˆ°ä¿¡å·ï¼Œä¸ç®¡ä»€ä¹ˆä¿¡å·
     volatile sig_atomic_t evsignal_caught;
-    // ¼àÌı²»Í¬ĞÅºÅµÄevent£¬Ã¿ÖÖĞÅºÅÒ»¸öÁ´±í£¬¶à¸öevent¿ÉÒÔ¼àÌıÍ¬Ò»¸öĞÅºÅ
+    // ç›‘å¬ä¸åŒä¿¡å·çš„eventï¼Œæ¯ç§ä¿¡å·ä¸€ä¸ªé“¾è¡¨ï¼Œå¤šä¸ªeventå¯ä»¥ç›‘å¬åŒä¸€ä¸ªä¿¡å·
     struct event_list evsigevents[NSIG];
 
-    // ²»Í¬ĞÅºÅ²¶×½µ½µÄ´ÎÊı
+    // ä¸åŒä¿¡å·æ•æ‰åˆ°çš„æ¬¡æ•°
     sig_atomic_t evsigcaught[NSIG];
 
-    // Ò»¸öĞÅºÅÒ»¸öĞÅºÅ´¦Àí»Øµ÷£¬HAVE_SIGACTIONÊÇ·ñÓĞsigactionº¯Êı
-    // ÓÃÓÚ±£´æÖ®Ç°µÄĞÅºÅĞÅÏ¢£¬ÒÔĞÅºÅÖµÎªÏÂ±êÈ¡¶ÔÓ¦µÄÔªËØ
+    // ä¸€ä¸ªä¿¡å·ä¸€ä¸ªä¿¡å·å¤„ç†å›è°ƒï¼ŒHAVE_SIGACTIONæ˜¯å¦æœ‰sigactionå‡½æ•°
+    // ç”¨äºä¿å­˜ä¹‹å‰çš„ä¿¡å·ä¿¡æ¯ï¼Œä»¥ä¿¡å·å€¼ä¸ºä¸‹æ ‡å–å¯¹åº”çš„å…ƒç´ 
 #ifdef HAVE_SIGACTION
     struct sigaction** sh_old;
 #else
     ev_sighandler_t** sh_old;
 #endif
-    // ĞÅºÅÀàĞÍµÄ×î´óÖµ
+    // ä¿¡å·ç±»å‹çš„æœ€å¤§å€¼
     int sh_old_max;
 };
 int evsignal_init(struct event_base*);

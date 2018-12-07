@@ -534,35 +534,34 @@ event_base_loop(struct event_base* base, int flags)
 
         timeout_correct(base, &tv);
 
-        tv_p = &tv;
-        // 有活动事件或者设置event_loop为非阻塞的话，不会计算计时器触发时间
-        // 并进入睡眠，这么做可能导致cpu占用率高
+        tv_p = &tv; // evsel->dispatch阻塞超时时间
+        // 有活动事件或者设置事件循环为非阻塞模式EV_LOOP_NOBLOCK，不会计算最近计时器触发时间
+        // 阻塞调用evsel->dispatch，如果并发量比较大或者事件较多的情况下可以设置为非阻塞模式，
+        // 否则可能会浪费cpu使用率
         if (!base->event_count_active && !(flags & EVLOOP_NONBLOCK)) {
-            //获取到base->timeheap中最先超时的计时器
+            //获取到base->timeheap最小堆中最先超时的计时器
             //如果没有计时器tv_p被赋值NULL，注意参数是timeval**
-            //否则
             timeout_next(base, &tv_p);
         } else {
             /*
              * if we have active events, we just poll new events
              * without waiting.
              */
-            evutil_timerclear(&tv);
+            evutil_timerclear(&tv); // 将阻塞超时时间清零
         }
 
         /* If we have no events, we just exit */
-        if (!event_haveevents(base)) {//内核中没有要监听的事件退出
+        if (!event_haveevents(base)) {//事件循环中没有要监听的事件退出
             event_debug(("%s: no events registered.", __func__));
             return (1);
         }
 
         /* update last old time */
-        // 更新event_loop时间
         gettime(base, &base->event_tv);
 
         /* clear time cache */
         base->tv_cache.tv_sec = 0;
-        //调用OS的I/O分发，tv_p表示超时的时间(如果不为NULL)
+        //调用OS的IO分发，tv_p表示超时的时间(如果不为NULL)
         //比如如果OS的I/O分发采用select，那么tv_p相当告诉select超时的时间，即正好是我们
         //添加到base->timeheap最先超时的event的时间(最小堆堆顶时间最靠前)
         res = evsel->dispatch(base, evbase, tv_p);
@@ -571,11 +570,12 @@ event_base_loop(struct event_base* base, int flags)
             return (-1);
         // base->tv_cache - base->event_tv就是dispatch使用的时间
         gettime(base, &base->tv_cache);
-        //处理超时的event，通过获取最小堆堆顶与当前时间比较是否超时
-        //如果超时则将event插入到base->activequeues并将base->event_count_active加1
+        //处理已经触发的计时器事件，通过获取最小堆堆顶与当前时间比较
+        //如果对顶时间小于当前时间说明计时器已经触发，将event插入到
+        //base->activequeues active队列
         timeout_process(base);
 
-        // 活动队列有事件的话，统一进行处理
+        // active队列有事件统一进行处理回调
         if (base->event_count_active) {
             event_process_active(base);
             if (!base->event_count_active && (flags & EVLOOP_ONCE))
@@ -665,19 +665,19 @@ event_base_once(struct event_base* base, int fd, short events,
 
     return (0);
 }
+
 //设置并初始化event
-//ev  注册的event
-// fd  文件描述符，如果是timeout event则忽略该参数
-//events  关心的事件 EV_TIMEOUT, EV_SIGNAL,  EV_READ, or EV_WRITE可以通过或运算符同时关心多个事件，发生
-//            对应事件callback将会被调用
-//callback 回调函数，被回调时fd和arg会传给它callback(fd, arg)
-//arg  传给callback的自定义参数
+// fd  文件描述符，如果是计时器则忽略该参数
+// events  监听的事件，主要有EV_TI
+//         算符同时监听多个事件
+// callback 事件响应回调函数，参数fd
+// arg  传递给callback的自定义参数
 void
 event_set(struct event* ev, int fd, short events,
           void (*callback)(int, short, void*), void* arg)
 {
     /* Take the current base - caller needs to set the real base later */
-    ev->ev_base = current_base; //默认对给全局reactor实例进行io分发
+    ev->ev_base = current_base; //默认设置为通过event_init初始换的全局事件循环
 
     ev->ev_callback = callback;
     ev->ev_arg = arg;
@@ -695,10 +695,10 @@ event_set(struct event* ev, int fd, short events,
         ev->ev_pri = current_base->nactivequeues / 2;
 }
 
+/*分发事件到特定事件循环*/
 
-// 将event归属与某个event_loop
 int
-event_base_set(struct event_base* base /*分发该ev的特定reactor*/, struct event* ev)
+event_base_set(struct event_base* base, struct event* ev)
 {
     /* Only innocent events may be assigned to a different base */
     if (ev->ev_flags != EVLIST_INIT)
@@ -764,9 +764,9 @@ event_pending(struct event* ev, short event, struct timeval* tv)
 int
 event_add(struct event* ev, const struct timeval* tv)
 {
-    struct event_base* base = ev->ev_base;//获得与该事件关联的event_base
-    const struct eventop* evsel = base->evsel; //底层与OS相关的I/O分发模式
-    void* evbase = base->evbase;//底层与OS相关的I/O分发模式参数
+    struct event_base* base = ev->ev_base;
+    const struct eventop* evsel = base->evsel; //底层与OS相关的IO模型
+    void* evbase = base->evbase;//底层与OS相关的IO模型上下文
     int res = 0;
 
     event_debug((
@@ -794,7 +794,7 @@ event_add(struct event* ev, const struct timeval* tv)
 
     if ((ev->ev_events & (EV_READ | EV_WRITE | EV_SIGNAL)) && //如果监听有非超时event
         !(ev->ev_flags & (EVLIST_INSERTED | EVLIST_ACTIVE))) { //且未插入到libevent
-        res = evsel->add(evbase, ev);//添加到OS的IO分发reactor
+        res = evsel->add(evbase, ev);//添加到与OS相关的IO模型
         if (res != -1)
             event_queue_insert(base, ev, EVLIST_INSERTED);// 插入event loop总的队列中
     }
@@ -803,7 +803,6 @@ event_add(struct event* ev, const struct timeval* tv)
      * we should change the timout state only if the previous event
      * addition succeeded.
      */
-    // 比较麻烦的是定时器的处理
     if (res != -1 && tv != NULL) {
         struct timeval now;
 
@@ -812,14 +811,14 @@ event_add(struct event* ev, const struct timeval* tv)
          * are not replacing an exisiting timeout.
          */
         // 如果定时器已经在定时队列中，先移除，主要发生在定时器已经插入
-        // event loop，想要修改定时器的发生时间
+        // 事件循环，想要修改定时器触发时间的情况
         if (ev->ev_flags & EVLIST_TIMEOUT)
             event_queue_remove(base, ev, EVLIST_TIMEOUT);
 
         /* Check if it is active due to a timeout.  Rescheduling
          * this timeout before the callback can be executed
          * removes it from the active list. */
-        // 如果定时器在活动队列中，立即将其中活动队列中移除
+        // 如果定时器在活动队列中，立即将其从active队列移除
         if ((ev->ev_flags & EVLIST_ACTIVE) &&
             (ev->ev_res & EV_TIMEOUT)) {
             /* See if we are just active executing this
@@ -833,14 +832,14 @@ event_add(struct event* ev, const struct timeval* tv)
             event_queue_remove(base, ev, EVLIST_ACTIVE);
         }
 
-        // 得到定时器发生的时间点
+        // 得到定时器触发时间点
         gettime(base, &now);
         evutil_timeradd(&now, tv, &ev->ev_timeout);
 
         event_debug((
                         "event_add: timeout in %ld seconds, call %p",
                         tv->tv_sec, ev->ev_callback));
-        // 插入定时器
+        // 插入定时器到事件循环队列
         event_queue_insert(base, ev, EVLIST_TIMEOUT);
     }
 
@@ -1000,13 +999,13 @@ timeout_process(struct event_base* base)
 {
     struct timeval now;
     struct event* ev;
-    // 有无计时器
+    // 最小堆为空，直接退出
     if (min_heap_empty(&base->timeheap))
         return;
 
     gettime(base, &now);
 
-    //比较计时器是否超时
+    // 检查堆顶元素是否超时
     while ((ev = min_heap_top(&base->timeheap))) {
         //与当前时间比较，如果大于当前时间
         //则说明没有超时，因为是最小堆，发现
@@ -1020,7 +1019,7 @@ timeout_process(struct event_base* base)
 
         event_debug(("timeout_process: call %p",
                      ev->ev_callback));
-        //插入到活动队列中
+        // 放入到active队列中等待回调
         event_active(ev, EV_TIMEOUT, 1);
     }
 }

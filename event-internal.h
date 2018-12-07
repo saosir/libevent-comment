@@ -47,36 +47,35 @@ struct eventop {
 };
 
 struct event_base {
-    // Ñ¡ÔñµÄi/o¸´ÓÃÄ£ĞÍ
+    // ä¸æ“ä½œç³»ç»Ÿç›¸å…³çš„ioå¤šè·¯å¤ç”¨æ¨¡å‹
     const struct eventop* evsel;
-    //µ÷ÓÃi/oÄ£ĞÍevsel->init·µ»ØµÄ±äÁ¿£¬
-    //Ö®ºóµ÷ÓÃÓëevselÏà¹ØµÄº¯Êı¶¼»á½«¸Ã±äÁ¿´«Èë
+    //è°ƒç”¨i/oæ¨¡å‹evsel->initè¿”å›çš„å˜é‡ï¼Œç›¸å½“äºioå¤šè·¯å¤ç”¨æ¨¡å‹ä¸Šçº¿æ–‡ï¼Œä¹‹åè°ƒç”¨ä¸evselç›¸å…³çš„ioæ¨¡å‹å‡½æ•°éƒ½ä¼šå°†è¯¥å˜é‡ä¼ å…¥
     void* evbase;
-    //µ±Ç°×¢²áµÄevent×ÜÊı
+    //å½“å‰æ³¨å†Œçš„äº‹ä»¶eventæ€»æ•°
     int event_count;        /* counts number of total events */
-    //´¦ÓÚ»î¶¯¶ÓÁĞµÄevent×ÜÊı£¬¼´½«±»»Øµ÷µÄevent
+    //å¤„äºæ´»åŠ¨é˜Ÿåˆ—çš„äº‹ä»¶eventæ€»æ•°ï¼Œè¿™éƒ¨åˆ†äº‹ä»¶å·²ç»è§¦å‘å³å°†è¢«å›è°ƒ
     int event_count_active; /* counts number of active events */
 
-    int event_gotterm;      /* Set to terminate loop Õı³£ÍË³ödispatch*/
-    int event_break;        /* Set to terminate loop immediately ÂíÉÏÍË³ödispatch*/
+    int event_gotterm;      /* Set to terminate loop æ­£å¸¸é€€å‡ºdispatch*/
+    int event_break;        /* Set to terminate loop immediately é©¬ä¸Šé€€å‡ºdispatch*/
 
     /* active event management */
-    //1. active list ¼´½«±»»Øµ÷µÄÊÂ¼ş
-    // - ±ÈÈç×¢²áÒ»¸ö2s timeout event£¬2s¹ıºó¸Ãevent»á±»·Åµ½¸ÃlistµÈ´ı±»»Øµ÷
-    // - ×¢²áÒ»¸ösocket read event,µ±socket¿É¶Á»á½«Óë¸Ãsocket     ¹ØÁªµÄevent·Åµ½listµÈ´ı»Øµ÷
-    //2. Ö¸ÕëÊı×éµÄÔ­ÒòÊÇÒªÊµÏÖÒ»¸öÓÅÏÈ¼¶£¬Êı×éÍ·ÓÅÏÈ¼¶×î¸ß,ÏÈ±»µ÷ÓÃ
-    //3. Ô½¿¿Ç°ÓÅÏÈ¼¶Ô½´ó
+    //1. active list activeé˜Ÿé‡Œï¼Œäº‹ä»¶å·²ç»è§¦å‘ç­‰å¾…å›è°ƒé€šçŸ¥
+    // - æ³¨å†Œä¸€ä¸ª2sè®¡æ—¶å™¨ï¼Œ2sè¿‡åè¯¥eventä¼šè¢«æ”¾åˆ°activeé˜Ÿåˆ—ç­‰å¾…å›è°ƒ
+    // - æ³¨å†Œä¸€ä¸ªsocketè¯»äº‹ä»¶,å½“socketå¯è¯»ä¼šå°†socketè¯»äº‹ä»¶æ”¾åˆ°activeé˜Ÿåˆ—ç­‰å¾…å›è°ƒ
+    //2. æŒ‡é’ˆæ•°ç»„çš„åŸå› æ˜¯è¦å®ç°ä¼˜å…ˆçº§åŠŸèƒ½
+    //3. è¶Šé å‰ä¼˜å…ˆçº§è¶Šå¤§
     struct event_list** activequeues;
-    // ÓÅÏÈ¼¶¶ÓÁĞÊı
+    // ä¼˜å…ˆçº§é˜Ÿåˆ—æ•°
     int nactivequeues;
 
     /* signal handling info */
-    struct evsignal_info sig; //ĞÅºÅÏà¹Ø
+    struct evsignal_info sig; //ä¿¡å·ç›¸å…³
 
-    struct event_list eventqueue; //²åÈëµÄËùÓĞevent
+    struct event_list eventqueue; //æ·»åŠ åˆ°äº‹ä»¶å¾ªç¯ä¸­çš„æ‰€æœ‰event
     struct timeval event_tv;
 
-    struct min_heap timeheap; //¶ş²æ¶ÑÓÃÓÚ´¦Àí¼ÆÊ±Æ÷
+    struct min_heap timeheap; //æœ€å°äºŒå‰å †ç”¨äºå¤„ç†è®¡æ—¶å™¨
 
     struct timeval tv_cache;
 };

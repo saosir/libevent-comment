@@ -75,7 +75,7 @@ static void evsignal_handler(int sig);
 #endif
 
 
-// ½ö½öÓÃÓÚ»½ĞÑ£¬¶ÁÈ¡socketÀïÃæµÄ»º³åÊı¾İÈ»ºó¶ªÆú
+// ä»…ä»…ç”¨äºå”¤é†’ï¼Œè¯»å–socketé‡Œé¢çš„ç¼“å†²æ•°æ®ç„¶åä¸¢å¼ƒ
 /* Callback for when the signal handler write a byte to our signaling socket */
 static void
 evsignal_cb(int fd, short what, void* arg)
@@ -136,8 +136,8 @@ evsignal_init(struct event_base* base)
     for (i = 0; i < NSIG; ++i)
         TAILQ_INIT(&base->sig.evsigevents[i]);
 
-    evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
-    evutil_make_socket_nonblocking(base->sig.ev_signal_pair[1]);
+    evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]); // writeç«¯
+    evutil_make_socket_nonblocking(base->sig.ev_signal_pair[1]); // readç«¯
 
     event_set(&base->sig.ev_signal, base->sig.ev_signal_pair[1],
               EV_READ | EV_PERSIST, evsignal_cb, &base->sig.ev_signal);
@@ -165,7 +165,7 @@ _evsignal_set_handler(struct event_base* base,
      * resize saved signal handler array up to the highest signal number.
      * a dynamic array is used to keep footprint on the low side.
      */
-    // ³¬¹ıµ±Ç°ÄÜ´æ´¢µÄÈİÁ¿£¬ÖØĞÂ·ÖÅäÄÚ´æ
+    // è¶…è¿‡å½“å‰èƒ½å­˜å‚¨çš„å®¹é‡ï¼Œé‡æ–°åˆ†é…å†…å­˜
     if (evsignal >= sig->sh_old_max) {
         int new_max = evsignal + 1;
         event_debug(("%s: evsignal (%d) >= sh_old_max (%d), resizing",
@@ -175,7 +175,7 @@ _evsignal_set_handler(struct event_base* base,
             event_warn("realloc");
             return (-1);
         }
-        // Çå¿ÕºóÃæÄÚ´æ
+        // æ¸…ç©ºåé¢å†…å­˜
         memset((char*)p + sig->sh_old_max * sizeof(*sig->sh_old),
                0, (new_max - sig->sh_old_max) * sizeof(*sig->sh_old));
 
@@ -204,7 +204,7 @@ _evsignal_set_handler(struct event_base* base,
         return (-1);
     }
 #else
-    // ´¦ÀíÃ»ÓĞsigaction APIµÄÇé¿ö£¬Ö»ĞèÒª¹ÜÀíÒ»¸ö»Øµ÷
+    // å¤„ç†æ²¡æœ‰sigaction APIçš„æƒ…å†µï¼Œåªéœ€è¦ç®¡ç†ä¸€ä¸ªå›è°ƒ
     if ((sh = signal(evsignal, handler)) == SIG_ERR) {
         event_warn("signal");
         free(sig->sh_old[evsignal]);
@@ -226,17 +226,17 @@ evsignal_add(struct event* ev)
 
     if (ev->ev_events & (EV_READ | EV_WRITE))
         event_errx(1, "%s: EV_SIGNAL incompatible use", __func__);
-    evsignal = EVENT_SIGNAL(ev);
+    evsignal = EVENT_SIGNAL(ev); // å¾—åˆ°ç›‘å¬çš„ä¿¡å·å€¼
     assert(evsignal >= 0 && evsignal < NSIG);
     if (TAILQ_EMPTY(&sig->evsigevents[evsignal])) {
         event_debug(("%s: %p: changing signal handler", __func__, ev));
-        if (_evsignal_set_handler(
+        if (_evsignal_set_handler( // posixå‡½æ•°signalè®¾ç½®ä¿¡å·å›è°ƒevsignal_handler
                 base, evsignal, evsignal_handler) == -1)
             return (-1);
 
         /* catch signals if they happen quickly */
         evsignal_base = base;
-
+        // æ·»åŠ åˆ°äº‹ä»¶å¾ªç¯
         if (!sig->ev_signal_added) {
             if (event_add(&sig->ev_signal, NULL))
                 return (-1);
@@ -250,7 +250,7 @@ evsignal_add(struct event* ev)
     return (0);
 }
 
-// ÉèÖÃ»ásh_old´æ´¢µÄĞÅºÅ´¦ÀíĞÅÏ¢
+// è®¾ç½®ä¼šsh_oldå­˜å‚¨çš„ä¿¡å·å¤„ç†ä¿¡æ¯
 int
 _evsignal_restore_handler(struct event_base* base, int evsignal)
 {
@@ -297,11 +297,11 @@ evsignal_del(struct event* ev)
         return (0);
 
     event_debug(("%s: %p: restoring signal handler", __func__, ev));
-    // »¹Ô­Ö®Ç°µÄĞÅºÅ´¦Àí
+    // è¿˜åŸä¹‹å‰çš„ä¿¡å·å¤„ç†
     return (_evsignal_restore_handler(ev->ev_base, EVENT_SIGNAL(ev)));
 }
 
-// ËùÓĞµÄĞÅºÅ´¦Àí¶¼ÓÉ¸Ã»Øµ÷º¯ÊıÍê³É£¬Ö÷ÒªµÄ¹¤×÷¾ÍÊÇÍù
+// æ‰€æœ‰çš„ä¿¡å·å¤„ç†éƒ½ç”±è¯¥å›è°ƒå‡½æ•°å®Œæˆ
 static void
 evsignal_handler(int sig)
 {
@@ -313,17 +313,17 @@ evsignal_handler(int sig)
             __func__, sig);
         return;
     }
-    // ¼ÇÂ¼²¶×½µ½ĞÅºÅµÄĞÅÏ¢
+    // è®°å½•æ•æ‰åˆ°ä¿¡å·çš„ä¿¡æ¯
     evsignal_base->sig.evsigcaught[sig]++;
     evsignal_base->sig.evsignal_caught = 1;
 
 #ifndef HAVE_SIGACTION
-    // ¼ÌĞø²¶×½¸ÃĞÅºÅ
+    // ç»§ç»­æ•æ‰è¯¥ä¿¡å·
     signal(sig, evsignal_handler);
 #endif
 
     /* Wake up our notification mechanism */
-    // Í¨Öª»½ĞÑevent loop ´¦ÀíĞÅºÅ»Øµ÷
+    // é€šçŸ¥å”¤é†’event loop å¤„ç†ä¿¡å·å›è°ƒ
     send(evsignal_base->sig.ev_signal_pair[0], "a", 1, 0);
     errno = save_errno;
 }
@@ -338,16 +338,16 @@ evsignal_process(struct event_base* base)
 
     base->sig.evsignal_caught = 0;
     for (i = 1; i < NSIG; ++i) {
-        // ²¶×½µ½¶àÉÙ´Î£¬¾ÍÒª»Øµ÷¶ÔÓ¦µÄevent¶Ôµ÷¶àÉÙ´Î
+        // æ•æ‰åˆ°å¤šå°‘æ¬¡ï¼Œå°±è¦å›è°ƒå¯¹åº”çš„eventå¯¹è°ƒå¤šå°‘æ¬¡
         ncalls = sig->evsigcaught[i];
         if (ncalls == 0)
             continue;
         sig->evsigcaught[i] -= ncalls;
-        // ½«¼àÌıĞÅºÅ¶ÔÓ¦µÄËùÓĞevent·ÅÈë»î¶¯¶ÓÁĞÖĞ
+        // å°†ç›‘å¬ä¿¡å·å¯¹åº”çš„æ‰€æœ‰eventæ”¾å…¥æ´»åŠ¨é˜Ÿåˆ—ä¸­
         for (ev = TAILQ_FIRST(&sig->evsigevents[i]);
              ev != NULL; ev = next_ev) {
             next_ev = TAILQ_NEXT(ev, ev_signal_next);
-            // ·ÇÓÀ¾ÃÊÂ¼şĞèÒªÉ¾³ı£¬Òò´ËÖ»»áÍ¨ÖªÒ»´Î£¬
+            // éæ°¸ä¹…äº‹ä»¶éœ€è¦åˆ é™¤ï¼Œå› æ­¤åªä¼šé€šçŸ¥ä¸€æ¬¡ï¼Œ
             if (!(ev->ev_events & EV_PERSIST))
                 event_del(ev);
             event_active(ev, EV_SIGNAL, ncalls);
@@ -364,7 +364,7 @@ evsignal_dealloc(struct event_base* base)
         event_del(&base->sig.ev_signal);
         base->sig.ev_signal_added = 0;
     }
-    // »¹Ô­Ö®Ç°µÄĞÅºÅ´¦Àí»Øµ÷
+    // è¿˜åŸä¹‹å‰çš„ä¿¡å·å¤„ç†å›è°ƒ
     for (i = 0; i < NSIG; ++i) {
         if (i < base->sig.sh_old_max && base->sig.sh_old[i] != NULL)
             _evsignal_restore_handler(base, i);

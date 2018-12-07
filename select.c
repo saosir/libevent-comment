@@ -279,15 +279,14 @@ select_add(void* arg, struct event* ev)
 {
     struct selectop* sop = arg;
 
-    if (ev->ev_events & EV_SIGNAL) //信号的捕捉集成在每一个os i/o中
+    if (ev->ev_events & EV_SIGNAL) //信号事件集成在每一个OS的IO模型模块中
         return (evsignal_add(ev)); //直接调用singnal.c模块
 
     check_selectop(sop);
     /*
      * Keep track of the highest fd, so that we can calculate the size
      * of the fd_sets for select(2)
-     * selectop->event_fds是传给API select的第一参数+1，
-     * 所有添加进来的fds中值最大
+     * selectop->event_fds是传给API select的所有文件符fds中的最大值
      */
     if (sop->event_fds < ev->ev_fd) {
         int fdsz = sop->event_fdsz;
